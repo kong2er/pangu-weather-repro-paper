@@ -1,0 +1,17 @@
+[project]
+name = "pangu-weather-repro-uv"
+version = "0.1.0"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+  "numpy>=1.26",
+  "xarray>=2024.1",
+  "netCDF4>=1.6",
+  "cdsapi>=0.7",
+  "requests>=2.31",
+  "tqdm>=4.66",
+  "pyyaml>=6.0",
+  "matplotlib>=3.8",
+  "cartopy>=0.22",
+  "onnx>=1.16",
+  "onnxruntime-gpu>=1.19",
+]

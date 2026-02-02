@@ -1,0 +1,28 @@
+# uv / venv
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# big artifacts
+*.nc
+*.grib
+*.npy
+*.npz
+*.onnx
+*.tar
+*.zip
+
+# data/model/output directories (heavy)
+data/
+models/
+outputs/
+figures/
+cache/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,18 @@
+date: "20230709"
+hour: "00"
+
+forecast:
+  max_hours: 24
+  strategy: "6h_then_24h"
+  use_gpu: true
+  num_threads: 1
+
+variables:
+  surface_order: ["msl", "u10", "v10", "t2m"]
+  pressure_order: ["z", "q", "t", "u", "v"]
+  pressure_levels: [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
+
+io:
+  era5_raw_dir: "${ERA5_RAW_ROOT}"
+  processed_dir: "${PROCESSED_ROOT}"
+  output_dir: "${OUTPUT_ROOT}"
