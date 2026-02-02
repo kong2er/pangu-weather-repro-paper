@@ -1,0 +1,129 @@
+# RUNBOOK – Pangu-Weather Reproduction
+
+---
+
+## 🇨🇳 中文工程手册（从开机到可复现）
+
+本 RUNBOOK 记录了在 **AutoDL GPU 实例**上，
+从零开始复现 **Pangu-Weather（ONNXRuntime-GPU）**的完整工程流程。
+ 
+目标： 
+- 任意时间新开实例 
+- 按本文档逐步执行 
+- 得到一致的输入、输出与结果 
+
+---
+
+## Day1：环境与 ERA5 数据准备（✅ 已完成）
+
+### 1. 运行环境
+
+- 平台：AutoDL
+- GPU：RTX 4090（24GB）
+- OS：Ubuntu 22.04
+- Python：3.10
+- 包管理：**uv（不使用 conda）**
+
+创建并同步环境：
+
+```bash
+uv venv --python 3.10
+uv sync
+```
+#### 验证 ONNXRuntime GPU Provider：
+```bash
+python - <<'PY'
+import onnxruntime as ort
+print("Available providers:"
+, ort.get_available_providers())
+PY
+```
+#### 期望输出包含：
+CUDAExecutionProvider
+
+---
+
+### 2. 项目目录结构约定
+```
+pangu-weather-repro-uv/
+├── configs/                  # 配置文件
+│   ├── default.env
+│   └── default.yaml
+├── scripts/                  # 可执行流水线脚本
+│   ├── 03_download_era5_single.py
+│   ├── 03_download_era5_pressure.py
+│   └── 04_preprocess_era5_to_npy.py   # Day2
+├── src/pangu_repro/          # 核心 Python 模块
+│   ├── adapters/             # Data Adapter（ERA5 → 模型输入）
+│   └── plotting/             # 论文级绘图管线
+├── tests/                    # 测试脚本
+├── figures/                  # 输出图像
+├── README.md
+├── RUNBOOK.md
+├── pyproject.toml
+└── uv.lock
+```
+
+---
+
+### 3. CDS（Copernicus）API 配置
+在 Copernicus Climate Data Store 申请 API Key，
+并写入以下文件：
+```
+~/.cdsapirc
+```
+格式示例：
+```
+url: https://cds.climate.copernicus.eu/api/v2
+key: <uid>:<api-key>
+```
+验证 CDS 是否可用（已完成）：
+```bash
+uv run python scripts/cds_smoke_t2m.py
+```
+
+### 4. ERA5 数据下载（2023-07-09 00UTC）
+下载 单层变量：
+```bash
+uv run python scripts/03_download_era5_single.py \
+  --date 20230709 \
+  --hour 00
+```
+下载 压力层变量（13 层）：
+```bash
+uv run python scripts/03_download_era5_pressure.py \
+  --date 20230709 \
+  --hour 00
+```
+数据存放路径（数据盘，不随关机丢失）：
+```
+/root/autodl-tmp/pangu-weather-repro/era5_raw/
+```
+验证文件存在：
+```bash
+ls /root/autodl-tmp/pangu-weather-repro/era5_raw
+```
+期望看到：
+- era5_single_2023070900.nc
+- era5_pressure_2023070900.nc
+
+---
+
+## Day2：ERA5 → NumPy 预处理（⬅️ 当前进行中）
+### 目标
+- 将 ERA5 NetCDF 数据转换为 Pangu-Weather 模型输入格式：
+	-input_surface.npy
+	-input_pressure.npy
+- 确保：
+	-shape 正确
+	-dtype 正确
+	-无 NaN
+	-变量顺序严格一致
+#### 关键脚本
+``` 
+scripts/04_preprocess_era5_to_npy.py
+```
+该脚本将使用 Data Adapter 架构，
+便于未来替换其他数据源（如自有模式数据）。
+
+---
