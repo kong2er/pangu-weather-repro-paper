@@ -26,3 +26,7 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# local scratch / backups (do not commit)
+_local_junk/
+*.bak.*
