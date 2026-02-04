@@ -127,3 +127,49 @@ scripts/04_preprocess_era5_to_npy.py
 便于未来替换其他数据源（如自有模式数据）。
 
 ---
+
+## Day3：ONNX 推理 Smoke Test（参考）
+
+如遇到显存/内存分配失败，优先用 noarena 方案运行：
+
+```bash
+uv run python tools/run_smoke_gpu_noarena.py --step 24
+```
+
+如仍失败，可强制 CPU：
+
+```bash
+FORCE_CPU=1 uv run python scripts/06_infer_smoke.py --step 24
+```
+
+---
+
+## Day4：多步 Rollout + OOM 规避（⬅️ 当前问题）
+
+### 常见报错原因
+`BFCArena::AllocateRawInternal Failed to allocate memory` 通常是 **显存/内存碎片化**
+或 **CUDA arena 预分配** 导致的峰值超限。建议按以下顺序排查：
+
+1. **禁用 arena / mem pattern**（减少峰值）
+2. **限制 GPU 可用显存**（让 ORT 更保守）
+3. **GPU 失败时自动回落到 CPU**
+
+### 1) 24h + 6h 组合测试（Day4 Step 1/2）
+```bash
+uv run python tools/day4_rollout.py --steps 24,6 --noarena
+```
+
+### 2) 更长 horizon（示例：56h = 24+24+6+1+1）
+```bash
+uv run python tools/day4_rollout.py --steps 24,24,6,1,1 --noarena
+```
+
+### 3) GPU 显存限制（避免突刺）
+```bash
+ORT_GPU_MEM_LIMIT_MB=12000 uv run python tools/day4_rollout.py --steps 24,6 --noarena
+```
+
+### 4) 强制 CPU（稳定但慢）
+```bash
+uv run python tools/day4_rollout.py --steps 24,6 --force-cpu
+```
