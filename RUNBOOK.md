@@ -159,10 +159,18 @@ FORCE_CPU=1 uv run python scripts/06_infer_smoke.py --step 24
 uv run python tools/day4_rollout.py --steps 24,6 --noarena
 # or: uv run python tools/day4_rollout_codex.py --steps 24,6 --noarena
 ```
+或使用带稳定参数的脚本（自动 source 环境）：
+```bash
+bash tools/day4_rollout_30h.sh
+```
 
 ### 2) 更长 horizon（示例：56h = 24+24+6+1+1）
 ```bash
 uv run python tools/day4_rollout.py --steps 24,24,6,1,1 --noarena
+```
+或使用带稳定参数的脚本（自动 source 环境）：
+```bash
+bash tools/day4_rollout_56h.sh
 ```
 
 ### 3) GPU 显存限制（避免突刺）
