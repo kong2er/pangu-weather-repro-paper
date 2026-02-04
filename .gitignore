@@ -30,3 +30,9 @@ Thumbs.db
 # local scratch / backups (do not commit)
 _local_junk/
 *.bak.*
+
+# outputs / archives
+/root/autodl-tmp/
+outputs/
+**/_archives/
+*.tgz
