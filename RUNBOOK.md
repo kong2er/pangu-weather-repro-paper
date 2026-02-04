@@ -157,6 +157,7 @@ FORCE_CPU=1 uv run python scripts/06_infer_smoke.py --step 24
 ### 1) 24h + 6h 组合测试（Day4 Step 1/2）
 ```bash
 uv run python tools/day4_rollout.py --steps 24,6 --noarena
+# or: uv run python tools/day4_rollout_codex.py --steps 24,6 --noarena
 ```
 
 ### 2) 更长 horizon（示例：56h = 24+24+6+1+1）
