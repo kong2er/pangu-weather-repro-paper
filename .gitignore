@@ -36,3 +36,4 @@ _local_junk/
 outputs/
 **/_archives/
 *.tgz
+configs/local.env
