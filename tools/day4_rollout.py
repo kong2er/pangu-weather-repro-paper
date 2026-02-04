@@ -1,188 +1,162 @@
-import argparse
-import json
-import os
-from typing import Dict, List, Tuple
-
+#!/usr/bin/env python3
+import argparse, os, json, time, hashlib
 import numpy as np
 import onnxruntime as ort
 
 
-def _resolve_model_path(models_dir: str, step: int) -> str:
-    name = f"pangu_weather_{step}.onnx"
-    path = os.path.join(models_dir, name)
-    if not os.path.exists(path):
-        raise FileNotFoundError(path)
-    return path
+def sha256_file(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
-def _session_options(threads: int, noarena: bool) -> ort.SessionOptions:
-    so = ort.SessionOptions()
-    so.intra_op_num_threads = threads
-    so.inter_op_num_threads = 1
-    if noarena:
-        so.enable_cpu_mem_arena = False
-        so.enable_mem_pattern = False
-        so.enable_mem_reuse = False
-    return so
+def build_cuda_provider_options() -> dict:
+    # 只取第一个 GPU id
+    dev = os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0].strip()
+    device_id = int(dev) if dev else 0
 
-
-def _providers(use_gpu: bool, gpu_mem_limit_mb: int | None) -> List:
-    if not use_gpu:
-        return ["CPUExecutionProvider"]
-    cuda_provider_options = {
-        "arena_extend_strategy": os.environ.get("ORT_ARENA_EXTEND_STRATEGY", "kNextPowerOfTwo"),
+    opts = {
+        "device_id": device_id,
+        # 让 cudnn 搜索更稳定（你 Day3 用的也是 DEFAULT）
         "cudnn_conv_algo_search": os.environ.get("ORT_CUDNN_ALGO_SEARCH", "DEFAULT"),
-        "do_copy_in_default_stream": "1",
-        "enable_cuda_graph": "0",
-        "tunable_op_enable": "0",
+        # 关键：减少内存峰值/碎片风险
+        # kSameAsRequested 一般比 NextPowerOfTwo 更稳（更不浪费）
+        "arena_extend_strategy": "kSameAsRequested",
+        # 某些场景降低同步开销
+        "do_copy_in_default_stream": 1,
     }
-    if gpu_mem_limit_mb:
-        cuda_provider_options["gpu_mem_limit"] = str(gpu_mem_limit_mb * 1024 * 1024)
-    return [("CUDAExecutionProvider", cuda_provider_options), "CPUExecutionProvider"]
+
+    # 可选：如果你真的要限制显存，就必须传一个 >0 的 bytes
+    lim = os.environ.get("ORT_GPU_MEM_LIMIT", "").strip()
+    if lim:
+        v = int(lim)
+        if v > 0:
+            opts["gpu_mem_limit"] = v  # bytes
+
+    return opts
 
 
-def _load_inputs(processed_dir: str) -> Tuple[np.ndarray, np.ndarray]:
-    surface = np.load(os.path.join(processed_dir, "surface.npy")).astype(np.float32)
-    pressure = np.load(os.path.join(processed_dir, "pressure.npy")).astype(np.float32)
-    if surface.ndim == 4 and surface.shape[1] == 1:
-        surface = surface[:, 0]
-    if pressure.ndim == 5 and pressure.shape[1] == 1:
-        pressure = pressure[:, 0]
-    return pressure, surface
+def make_session(model_path: str, use_cuda: bool) -> ort.InferenceSession:
+    so = ort.SessionOptions()
+
+    # 关键：关闭 mem pattern（会导致大峰值/碎片），并强制顺序执行
+    so.enable_mem_pattern = False
+    so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+    # 线程保持 1（你 Day3 就是这样稳）
+    so.intra_op_num_threads = int(os.environ.get("ORT_INTRA_OP", "1"))
+    so.inter_op_num_threads = int(os.environ.get("ORT_INTER_OP", "1"))
+
+    # 图优化别开太猛，避免额外临时张量峰值（默认 ORT_ENABLE_ALL 有时更吃内存）
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+
+    if use_cuda:
+        cuda_opts = build_cuda_provider_options()
+        providers = [("CUDAExecutionProvider", cuda_opts), "CPUExecutionProvider"]
+    else:
+        providers = ["CPUExecutionProvider"]
+
+    return ort.InferenceSession(model_path, sess_options=so, providers=providers)
 
 
-def _map_inputs(sess: ort.InferenceSession, pressure: np.ndarray, surface: np.ndarray) -> Dict[str, np.ndarray]:
-    ins = sess.get_inputs()
-    feed: Dict[str, np.ndarray] = {}
-    for i in ins:
-        name = i.name.lower()
-        if "surface" in name:
-            feed[i.name] = surface
-        elif "upper" in name or "pressure" in name:
-            feed[i.name] = pressure
-    if len(feed) != len(ins):
-        feed = {ins[0].name: surface, ins[1].name: pressure}
-
-    # Fix known swapped input ordering by matching expected shapes.
-    try:
-        exp = {i.name: tuple(i.shape) for i in ins}
-        got_in = tuple(getattr(feed.get("input"), "shape", ()))
-        got_sfc = tuple(getattr(feed.get("input_surface"), "shape", ()))
-        if ("input" in feed and "input_surface" in feed and
-            got_in == exp.get("input_surface") and got_sfc == exp.get("input")):
-            feed = dict(feed)
-            feed["input"], feed["input_surface"] = feed["input_surface"], feed["input"]
-    except Exception:
-        pass
-    return feed
+def run_one(sess: ort.InferenceSession, pressure: np.ndarray, surface: np.ndarray):
+    t0 = time.time()
+    out_pressure, out_surface = sess.run(
+        None,
+        {"input": pressure.astype(np.float32), "input_surface": surface.astype(np.float32)},
+    )
+    dt = time.time() - t0
+    return {
+        "providers_actual": sess.get_providers(),
+        "dt_sec": dt,
+        "out_pressure": out_pressure,
+        "out_surface": out_surface,
+    }
 
 
-def _split_outputs(sess: ort.InferenceSession, outputs: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
-    names = [o.name.lower() for o in sess.get_outputs()]
-    pressure = None
-    surface = None
-    for name, arr in zip(names, outputs):
-        if "surface" in name:
-            surface = arr
-        elif "upper" in name or "pressure" in name:
-            pressure = arr
-    if pressure is None or surface is None:
-        surface, pressure = outputs[0], outputs[1]
-    return pressure, surface
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--schedule", nargs="+", type=int, required=True, help="e.g. 24 6 or 24 24 6 1 1")
+    ap.add_argument("--models-root", required=True)
+    ap.add_argument("--output-dir", required=True)
+    ap.add_argument("--init-pressure", default="", help="optional .npy")
+    ap.add_argument("--init-surface", default="", help="optional .npy")
+    ap.add_argument("--providers", default="cuda", choices=["cuda", "cpu"], help="use cuda or cpu")
+    args = ap.parse_args()
 
+    os.makedirs(args.output_dir, exist_ok=True)
 
-def _run_step(
-    model_path: str,
-    pressure: np.ndarray,
-    surface: np.ndarray,
-    threads: int,
-    use_gpu: bool,
-    noarena: bool,
-    gpu_mem_limit_mb: int | None,
-) -> Tuple[np.ndarray, np.ndarray, List[str]]:
-    so = _session_options(threads, noarena)
-    providers = _providers(use_gpu, gpu_mem_limit_mb)
-    sess = ort.InferenceSession(model_path, providers=providers, sess_options=so)
-    feed = _map_inputs(sess, pressure, surface)
-    out_names = [o.name for o in sess.get_outputs()]
-    outputs = sess.run(out_names, feed)
-    next_pressure, next_surface = _split_outputs(sess, outputs)
-    return next_pressure, next_surface, sess.get_providers()
+    def model_of(h):
+        p = os.path.join(args.models_root, f"pangu_weather_{h}.onnx")
+        if not os.path.exists(p):
+            raise FileNotFoundError(f"missing model for {h}h: {p}")
+        return p
 
+    # init state：建议用 smoke 输出作为初值（更合理也更稳定）
+    if args.init_pressure and args.init_surface:
+        pressure = np.load(args.init_pressure)
+        surface = np.load(args.init_surface)
+    else:
+        pressure = np.random.randn(5, 13, 721, 1440).astype(np.float32)
+        surface = np.random.randn(4, 721, 1440).astype(np.float32)
 
-def main() -> None:
-    p = argparse.ArgumentParser()
-    p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "/root/autodl-tmp/pangu-weather-repro/models"))
-    p.add_argument("--processed-dir", default=os.environ.get("PROCESSED_ROOT", "/root/autodl-tmp/pangu-weather-repro/processed"))
-    p.add_argument("--out-dir", default=os.environ.get("OUTPUT_ROOT", "/root/autodl-tmp/pangu-weather-repro/outputs"))
-    p.add_argument("--steps", default="24,6", help="Comma-separated step hours, e.g. 24,6 or 24,24,6,1,1")
-    p.add_argument("--force-cpu", action="store_true")
-    p.add_argument("--gpu-mem-limit-mb", type=int, default=int(os.environ.get("ORT_GPU_MEM_LIMIT_MB", "0")))
-    p.add_argument("--threads", type=int, default=int(os.environ.get("OMP_NUM_THREADS", "1")))
-    p.add_argument("--noarena", action="store_true", help="Disable ORT arena/mem pattern to reduce peak spikes")
-    args = p.parse_args()
-
-    os.makedirs(args.out_dir, exist_ok=True)
-    steps = [int(s.strip()) for s in args.steps.split(",") if s.strip()]
-    if not steps:
-        raise ValueError("No steps provided.")
-
-    pressure, surface = _load_inputs(args.processed_dir)
+    use_cuda = (args.providers == "cuda")
 
     report = {
-        "steps": steps,
-        "providers_used": [],
-        "pressure_shape": list(pressure.shape),
-        "surface_shape": list(surface.shape),
-        "outputs": [],
+        "schedule": args.schedule,
+        "models_root": args.models_root,
+        "output_dir": args.output_dir,
+        "providers_requested": args.providers,
+        "steps": [],
     }
 
-    for idx, step in enumerate(steps, start=1):
-        model_path = _resolve_model_path(args.models_dir, step)
-        use_gpu = not args.force_cpu
-        try:
-            pressure, surface, providers = _run_step(
-                model_path,
-                pressure,
-                surface,
-                args.threads,
-                use_gpu=use_gpu,
-                noarena=args.noarena,
-                gpu_mem_limit_mb=args.gpu_mem_limit_mb or None,
-            )
-        except Exception as exc:
-            msg = str(exc)
-            if use_gpu and ("Failed to allocate memory" in msg or "CUDA" in msg):
-                print(f"⚠️ GPU OOM on step {step}, retrying on CPU...")
-                pressure, surface, providers = _run_step(
-                    model_path,
-                    pressure,
-                    surface,
-                    args.threads,
-                    use_gpu=False,
-                    noarena=args.noarena,
-                    gpu_mem_limit_mb=None,
-                )
-            else:
-                raise
+    # session cache：每个 horizon 的模型只建一次（避免重复占用/碎片）
+    sessions = {}
 
-        stamp = f"{sum(steps[:idx])}h"
-        np.save(os.path.join(args.out_dir, f"rollout_pressure_{stamp}.npy"), np.asarray(pressure))
-        np.save(os.path.join(args.out_dir, f"rollout_surface_{stamp}.npy"), np.asarray(surface))
-        report["providers_used"].append(providers)
-        report["outputs"].append(
-            {
-                "step": step,
-                "stamp": stamp,
-                "pressure_shape": list(np.asarray(pressure).shape),
-                "surface_shape": list(np.asarray(surface).shape),
-            }
-        )
+    cum = 0
+    for i, h in enumerate(args.schedule, start=1):
+        cum += h
+        mp = model_of(h)
 
-    rep_path = os.path.join(args.out_dir, "rollout_report.json")
-    with open(rep_path, "w") as f:
-        json.dump(report, f, indent=2)
-    print("✅ rollout ok, wrote:", rep_path)
+        if h not in sessions:
+            sessions[h] = make_session(mp, use_cuda)
+
+        print(f"[Day4] step {i}/{len(args.schedule)}  (+{h}h => t+{cum}h)  model={os.path.basename(mp)}")
+
+        r = run_one(sessions[h], pressure, surface)
+
+        if np.isnan(r["out_pressure"]).any() or np.isnan(r["out_surface"]).any():
+            raise RuntimeError(f"NaN detected at step {i} (+{h}h)")
+
+        p_path = os.path.join(args.output_dir, f"t+{cum:03d}h_pressure.npy")
+        s_path = os.path.join(args.output_dir, f"t+{cum:03d}h_surface.npy")
+        np.save(p_path, r["out_pressure"])
+        np.save(s_path, r["out_surface"])
+
+        step_item = {
+            "step": i,
+            "h": h,
+            "t_plus_h": cum,
+            "model": os.path.basename(mp),
+            "providers_actual": r["providers_actual"],
+            "dt_sec": r["dt_sec"],
+            "pressure_shape": list(r["out_pressure"].shape),
+            "surface_shape": list(r["out_surface"].shape),
+            "pressure_sha256": sha256_file(p_path),
+            "surface_sha256": sha256_file(s_path),
+        }
+        report["steps"].append(step_item)
+
+        # 每一步都落盘（方便你看进度+中断可追踪）
+        report_path = os.path.join(args.output_dir, "day4_rollout_report.json")
+        with open(report_path, "w") as f:
+            json.dump(report, f, indent=2)
+
+        pressure, surface = r["out_pressure"], r["out_surface"]
+
+    print(f"[OK] wrote {os.path.join(args.output_dir, 'day4_rollout_report.json')}")
 
 
 if __name__ == "__main__":
