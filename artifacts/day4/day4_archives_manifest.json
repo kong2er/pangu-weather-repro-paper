@@ -1,0 +1,16 @@
+{
+  "archives": [
+    {
+      "file": "day4_rollout_30h.tgz",
+      "path": "/root/autodl-tmp/pangu-weather-repro/outputs/_archives/day4_rollout_30h.tgz",
+      "bytes": 476560661,
+      "sha256": "d2a89529de2607fab14faf13d1f119c552ccced07967c537d4bf744e74f9b6cf"
+    },
+    {
+      "file": "day4_rollout_56h.tgz",
+      "path": "/root/autodl-tmp/pangu-weather-repro/outputs/_archives/day4_rollout_56h.tgz",
+      "bytes": 1190807976,
+      "sha256": "7a58aa47e50a09c101c1c1e92fc65ff739471477d04a8093fb860ad6ca545322"
+    }
+  ]
+}

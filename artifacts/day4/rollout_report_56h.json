@@ -1,0 +1,139 @@
+{
+  "steps": [
+    24,
+    24,
+    6,
+    1,
+    1
+  ],
+  "providers_used": [
+    [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ]
+  ],
+  "pressure_shape": [
+    5,
+    13,
+    721,
+    1440
+  ],
+  "surface_shape": [
+    4,
+    721,
+    1440
+  ],
+  "outputs": [
+    {
+      "step": 24,
+      "stamp": "24h",
+      "pressure_shape": [
+        5,
+        13,
+        721,
+        1440
+      ],
+      "surface_shape": [
+        4,
+        721,
+        1440
+      ],
+      "providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ]
+    },
+    {
+      "step": 24,
+      "stamp": "48h",
+      "pressure_shape": [
+        5,
+        13,
+        721,
+        1440
+      ],
+      "surface_shape": [
+        4,
+        721,
+        1440
+      ],
+      "providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ]
+    },
+    {
+      "step": 6,
+      "stamp": "54h",
+      "pressure_shape": [
+        5,
+        13,
+        721,
+        1440
+      ],
+      "surface_shape": [
+        4,
+        721,
+        1440
+      ],
+      "providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ]
+    },
+    {
+      "step": 1,
+      "stamp": "55h",
+      "pressure_shape": [
+        5,
+        13,
+        721,
+        1440
+      ],
+      "surface_shape": [
+        4,
+        721,
+        1440
+      ],
+      "providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ]
+    },
+    {
+      "step": 1,
+      "stamp": "56h",
+      "pressure_shape": [
+        5,
+        13,
+        721,
+        1440
+      ],
+      "surface_shape": [
+        4,
+        721,
+        1440
+      ],
+      "providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ]
+    }
+  ]
+}
