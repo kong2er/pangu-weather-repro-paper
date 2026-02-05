@@ -9,6 +9,7 @@
 - Day4: 多步 rollout 与 eval 元信息生成
 - Day5: RMSE 指标生成
 - Day6: 论文级示例图生成
+- Day7: 多变量多 lead 汇总生成
 
 ---
 
@@ -23,6 +24,8 @@ source configs/default.env
 bash scripts/01_download_models.sh
 uv run python scripts/03_download_era5_single.py --date 20230709 --hour 00
 uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
+uv run python scripts/03_download_era5_single.py --date 20230709 --hour 06
+uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 06
 ```
 - Outputs:
 - `$MODELS_ROOT/pangu_weather_1.onnx`
@@ -31,10 +34,13 @@ uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
 - `$MODELS_ROOT/pangu_weather_24.onnx`
 - `$ERA5_RAW_ROOT/era5_single_2023070900.nc`
 - `$ERA5_RAW_ROOT/era5_pressure_2023070900.nc`
+- `$ERA5_RAW_ROOT/era5_single_2023070906.nc`
+- `$ERA5_RAW_ROOT/era5_pressure_2023070906.nc`
 - Verify:
 ```bash
 ls -lh "$MODELS_ROOT" | grep pangu_weather_24.onnx
 ls -lh "$ERA5_RAW_ROOT" | grep 2023070900
+ls -lh "$ERA5_RAW_ROOT" | grep 2023070906
 ```
 - If it fails:
 - `cdsapi` 认证失败: 重新配置 `~/.cdsapirc` 并执行 `uv run python scripts/cds_smoke_t2m.py`。
@@ -91,34 +97,38 @@ uv run python tools/run_smoke_gpu_noarena.py --step 24 | head -n 5
 
 ## Day4: 多步 Rollout + 评估包
 - Goal: 多步预测并导出评估包。
-- Why: Day5 的 RMSE 与 Day6 的可视化都依赖评估包。
-- Commands:
+- Why: Day5 的 RMSE 与 Day6/Day7 的可视化都依赖评估包。
+- Commands (不跨天，建议新手):
 ```bash
 source configs/default.env
+uv run python tools/day4_rollout.py --steps 6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_06h"
+```
+- Commands (可选跨天 24h+6h):
+```bash
 uv run python tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"
 ```
 - Outputs:
-- `$OUTPUT_ROOT/day4_rollout_30h/rollout_report.json`
-- `$OUTPUT_ROOT/day4_rollout_30h/eval_z500.npz`
-- `$OUTPUT_ROOT/day4_rollout_30h/eval_z500_meta.json`
+- `$OUTPUT_ROOT/day4_rollout_06h/rollout_report.json`
+- `$OUTPUT_ROOT/day4_rollout_06h/eval_z500.npz`
+- `$OUTPUT_ROOT/day4_rollout_06h/eval_z500_meta.json`
 - Verify:
 ```bash
-ls -lh "$OUTPUT_ROOT/day4_rollout_30h" | grep eval_z500
+ls -lh "$OUTPUT_ROOT/day4_rollout_06h" | grep eval_z500
 ```
 - If it fails:
 - GPU OOM: 添加 `--noarena` 或 `ORT_GPU_MEM_LIMIT_MB=12000`。
 - 输出目录为空: 确认 `--out-dir` 指向 `$OUTPUT_ROOT`。
-- 24h/30h 跨天: 需要 Day5 的 ERA5 `20230710 00/06` 真值文件。新手建议先用 `--steps 6`。
+- 24h/30h 跨天: 需要 Day5/Day7 的 ERA5 `20230710 00/06` 真值文件。
 
 ---
 
 ## Day5: RMSE 评估（z500）
 - Goal: 计算 z500 的 RMSE 指标。
 - Why: 量化预测误差，为 Day6 曲线与论文指标提供基础。
-- Commands:
+- Commands (对应 6h):
 ```bash
 source configs/default.env
-uv run python tools/eval_rmse.py --pred "$OUTPUT_ROOT/day4_rollout_30h/eval_z500.npz" --var z500 --out artifacts/day5/rmse.csv
+uv run python tools/eval_rmse.py --pred "$OUTPUT_ROOT/day4_rollout_06h/eval_z500.npz" --var z500 --out artifacts/day5/rmse.csv
 ```
 - Outputs:
 - `artifacts/day5/rmse.csv`
@@ -128,21 +138,21 @@ head -n 3 artifacts/day5/rmse.csv
 ```
 - If it fails:
 - `FileNotFoundError eval_z500`: 先完成 Day4。
-- `FileNotFoundError era5_pressure_2023071000/06`: 下载对应 ERA5 pressure 文件。
+- `FileNotFoundError era5_pressure_2023070906`: 下载对应 ERA5 pressure 文件。
 
 ---
 
 ## Day6: 可视化（论文级示例图）
 - Goal: 生成可复现实验图像。
 - Why: 直观展示预测质量与误差随 lead time 变化。
-- Commands:
+- Commands (对应 6h):
 ```bash
 source configs/default.env
-uv run python tools/plot_fields.py --var z500 --lead 24
+uv run python tools/plot_fields.py --var z500 --lead 6
 uv run python tools/plot_rmse_curve.py --var z500
 ```
 - Outputs:
-- `figures/day6/field_z500_2023070900_t+024.png`
+- `figures/day6/field_z500_2023070900_t+006.png`
 - `figures/day6/rmse_z500_2023070900.png`
 - Verify:
 ```bash
@@ -150,7 +160,7 @@ find figures/day6 -maxdepth 1 -name "*.png"
 ```
 - Verify (inputs chosen by script):
 ```bash
-uv run python tools/plot_fields.py --var z500 --lead 24 | head -n 6
+uv run python tools/plot_fields.py --var z500 --lead 6 | head -n 6
 ```
 - If it fails:
 - `meta not found`: 先完成 Day4。
@@ -158,7 +168,44 @@ uv run python tools/plot_fields.py --var z500 --lead 24 | head -n 6
 
 ---
 
+## Day7: 多变量多 lead 汇总
+- Goal: 批量计算多变量、多 lead 的 RMSE 并汇总。
+- Why: 从单变量示例升级为可扩展的评估与汇总，便于对外汇报。
+- Commands (默认不跨天):
+```bash
+source configs/default.env
+uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --out figures/day7/summary_rmse.png
+```
+- Commands (可选 24h，需补 ERA5 20230710 00):
+```bash
+uv run python scripts/03_download_era5_single.py --date 20230710 --hour 00
+uv run python scripts/03_download_era5_pressure.py --date 20230710 --hour 00
+uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6,24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --out figures/day7/summary_rmse.png
+```
+- Outputs:
+- `artifacts/day7/metrics_summary.csv`
+- `docs/day7_results.md`
+- `figures/day7/summary_rmse.png`
+- Verify:
+```bash
+ls -lh artifacts/day7/metrics_summary.csv
+head -n 5 artifacts/day7/metrics_summary.csv
+ls -lh figures/day7/summary_rmse.png
+```
+- Verify (inputs chosen by script):
+```bash
+uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md | head -n 6
+```
+- If it fails:
+- `meta not found`: 先完成 Day4。
+- `missing rollout outputs`: lead 必须在 Day4 steps 范围内，或重新跑 rollout。
+- `FileNotFoundError era5_single/pressure`: 补齐对应 ERA5 时次。
+
+---
+
 ## Notes
 - 云端统一使用 `source configs/default.env`。
 - 本地使用 `source configs/local.env`，仅说明不提交。
-- 大文件写入 `$OUTPUT_ROOT`，示例图写入 `figures/day6/`。
+- 大文件写入 `$OUTPUT_ROOT`，示例图写入 `figures/`。

@@ -6,6 +6,7 @@
 - Day4 多步 rollout（生成预测与评估包）
 - Day5 RMSE 指标计算（z500）
 - Day6 论文级示例图（GT/Pred/Error 三联图 + RMSE 曲线）
+- Day7 可扩展评估与汇总（多变量、多 lead）
 
 ## Repository Layout
 ```text
@@ -23,13 +24,18 @@ repo_root/
 │   ├── day4_rollout.py
 │   ├── eval_rmse.py
 │   ├── plot_fields.py
-│   └── plot_rmse_curve.py
+│   ├── plot_rmse_curve.py
+│   ├── day7_metrics.py
+│   └── day7_plot_summary.py
 ├── artifacts/                # 指标结果（小文件）
-│   └── day5/rmse.csv
+│   ├── day5/rmse.csv
+│   └── day7/metrics_summary.csv
 ├── figures/                  # 示例图像
-│   └── day6/*.png
+│   ├── day6/*.png
+│   └── day7/summary_rmse.png
 ├── docs/                     # 结果说明
-│   └── day6_results.md
+│   ├── day6_results.md
+│   └── day7_results.md
 ├── README.md
 ├── RUNBOOK.md
 ├── pyproject.toml
@@ -59,6 +65,7 @@ bash scripts/01_download_models.sh
 ```bash
 uv run python scripts/03_download_era5_single.py --date 20230709 --hour 00
 uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
+uv run python scripts/03_download_era5_single.py --date 20230709 --hour 06
 uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 06
 ```
 
@@ -90,11 +97,19 @@ uv run python tools/plot_rmse_curve.py --var z500
 - `figures/day6/field_z500_2023070900_t+006.png`
 - `figures/day6/rmse_z500_2023070900.png`
 
+## Day7 Quickstart (多变量、多 lead 汇总)
+默认不跨天，仅 6h：
+```bash
+uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --out figures/day7/summary_rmse.png
+```
+如果需要 24h，请先下载 `20230710 00` 的 ERA5 single/pressure。
+
 ## Output Locations
 - 大文件：`$OUTPUT_ROOT` 或 `$DATA_ROOT`
-- 指标表：`artifacts/day5/rmse.csv`
-- 示例图：`figures/day6/`
-- 结果说明：`docs/day6_results.md`
+- 指标表：`artifacts/day5/rmse.csv`、`artifacts/day7/metrics_summary.csv`
+- 示例图：`figures/day6/`、`figures/day7/summary_rmse.png`
+- 结果说明：`docs/day6_results.md`、`docs/day7_results.md`
 
 ## Reproducibility Rules
 - 统一使用 `source configs/default.env` 或 `configs/local.env`。
@@ -114,14 +129,19 @@ ls -lh "$OUTPUT_ROOT/day4_rollout_06h" | grep eval_z500
 ```bash
 head -n 3 artifacts/day5/rmse.csv
 ```
-- Day6 图片存在：
+- Day7 汇总表存在：
+```bash
+head -n 5 artifacts/day7/metrics_summary.csv
+```
+- Day6/Day7 图片存在：
 ```bash
 find figures/day6 -maxdepth 1 -name "*.png"
+find figures/day7 -maxdepth 1 -name "*.png"
 ```
 
 ## Common Issues
 - ERA5 队列拥堵：等 CDS Successful 后用 `wget` 下载到 `$ERA5_RAW_ROOT`。
 - Day4 GPU OOM：使用 `--noarena` 或设置 `ORT_GPU_MEM_LIMIT_MB`。
-- Day5 找不到 ERA5：补齐对应时次的 pressure 文件。
+- Day5/Day7 找不到 ERA5：补齐对应时次的 pressure/single 文件。
 
 详细步骤与排错请阅读 `RUNBOOK.md`。
