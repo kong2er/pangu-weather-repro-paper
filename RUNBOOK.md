@@ -198,3 +198,21 @@ uv run python tools/eval_rmse.py \
 - Day4 `24h + 6h` 预测对应的真值文件：`era5_pressure_2023071000.nc`
 - Day4 `24h + 6h` 预测对应的真值文件：`era5_pressure_2023071006.nc`
 - 若 ERA5 下载队列拥堵，建议在 CDS 网页侧等到 `Successful` 后用下载链接直接 `wget` 到 `$ERA5_RAW_ROOT`。
+
+---
+
+## Day6：可视化（论文级示例图）
+
+### 依赖
+- 先完成 Day4 rollout，生成 `eval_z500_meta.json`
+- 再完成 Day5，生成 `artifacts/day5/rmse.csv`
+
+### 1) 生成 GT / Pred / Error 三联图
+```bash
+uv run python tools/plot_fields.py --var z500 --lead 24
+```
+
+### 2) 生成 RMSE 曲线图
+```bash
+uv run python tools/plot_rmse_curve.py --var z500
+```
