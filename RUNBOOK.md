@@ -199,6 +199,28 @@ uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifact
 
 ---
 
+## Day7 (Extended): 360h 长时效预测（用于验证）
+- Goal: 生成完整 360h 预测产物，用于长时效验证。
+- Why: 为 Day7/Day8 的长期验证提供预测序列与可追溯输出。
+- Commands:
+```bash
+source configs/default.env
+uv run python tools/day4_rollout.py --steps 24,24,24,24,24,24,24,24,24,24,24,24,24,24,24 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_360h"
+```
+- Outputs:
+- `$OUTPUT_ROOT/day4_rollout_360h/rollout_report.json`
+- `$OUTPUT_ROOT/day4_rollout_360h/rollout_pressure_*.npy`
+- `$OUTPUT_ROOT/day4_rollout_360h/rollout_surface_*.npy`
+- Verify:
+```bash
+ls -lh "$OUTPUT_ROOT/day4_rollout_360h" | head -n 10
+```
+- If it fails:
+- GPU OOM: 使用 `--noarena` 或设置 `ORT_GPU_MEM_LIMIT_MB`。
+- 运行时间过长: 建议后台运行并记录日志。
+
+---
+
 ## Day8: 论文口径对齐增强（lat-weighted RMSE + ACC）
 - Goal: 对齐论文常用口径（纬度加权 RMSE 与 ACC）。
 - Why: 更符合论文常用评估指标，便于对比与汇报。
@@ -230,3 +252,4 @@ ls -lh figures/day7/summary_acc.png
 - 云端统一使用 `source configs/default.env`。
 - 本地使用 `source configs/local.env`，仅说明不提交。
 - 大文件写入 `$OUTPUT_ROOT`，示例图写入 `figures/`。
+ - 可使用 Makefile 简化流程：`make rollout-360h`、`make day7`、`make day8`。

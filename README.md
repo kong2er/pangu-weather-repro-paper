@@ -105,12 +105,27 @@ uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifact
 uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
 ```
 如果需要 24h，请先下载 `20230710 00` 的 ERA5 single/pressure。
+如果需要完整 360h 预测（用于验证与长时效评估），请使用 Makefile 目标 `make rollout-360h`。
 
 ## Day8 Quickstart (lat-weighted RMSE + ACC)
 ```bash
 uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
 uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
 uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric acc_latw --out figures/day7/summary_acc.png
+```
+
+## Makefile Shortcuts
+```bash
+make env
+make models
+make era5-0900
+make era5-0906
+make preprocess
+make rollout-6h
+make rollout-30h
+make rollout-360h
+make day7
+make day8
 ```
 
 ## Output Locations
