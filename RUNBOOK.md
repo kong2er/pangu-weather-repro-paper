@@ -193,3 +193,8 @@ uv run python tools/eval_rmse.py \
   --var z500 \
   --out artifacts/day5/rmse.csv
 ```
+
+### 3) 说明（ERA5 对齐时次）
+- Day4 `24h + 6h` 预测对应的真值文件：`era5_pressure_2023071000.nc`
+- Day4 `24h + 6h` 预测对应的真值文件：`era5_pressure_2023071006.nc`
+- 若 ERA5 下载队列拥堵，建议在 CDS 网页侧等到 `Successful` 后用下载链接直接 `wget` 到 `$ERA5_RAW_ROOT`。

@@ -48,7 +48,7 @@ pangu-weather-repro-uv/
 
 ---
 
-### 🚀 快速开始（Day1 已验证）
+### 🚀 快速开始（Day1–Day5 已验证）
 ```bash
 # 1. 创建并同步环境
 uv 
@@ -57,6 +57,15 @@ sync
 # 2. 下载 ERA5 数据（2023-07-09 00UTC）
 uv run python scripts/03_download_era5_single.py   --date 20230709 --hour 00
 uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
+
+# 3. Day4 rollout（30h = 24 + 6）
+uv run python tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"
+
+# 4. Day5 RMSE（z500）
+uv run python tools/eval_rmse.py \
+  --pred "$OUTPUT_ROOT/day4_rollout_30h/eval_z500.npz" \
+  --var z500 \
+  --out artifacts/day5/rmse.csv
 ```
 #### 数据将被保存到 数据盘（不会随关机丢失）：
 ```
@@ -67,6 +76,8 @@ uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
 
 🧭 当前进度
 - Day1：环境搭建 + CDS API + ERA5 下载 ✅
-- Day2：ERA5 → NumPy 预处理（进行中）
-- Day3：模型推理、评估与可视化（计划中）
+- Day2：ERA5 → NumPy 预处理 ✅
+- Day3：ONNX 推理 Smoke ✅
+- Day4：多步 rollout ✅
+- Day5：RMSE 评估（z500）✅
 详细步骤请查看 👉 RUNBOOK.md
