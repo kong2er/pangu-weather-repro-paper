@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from tools._metrics import acc_simple, load_latitude, rmse, rmse_latw
+from _metrics import acc_simple, load_latitude, rmse, rmse_latw
 
 SURFACE_ORDER = ["msl", "u10", "v10", "t2m"]
 PRESSURE_ORDER = ["z", "q", "t", "u", "v"]
