@@ -2,10 +2,14 @@
 import argparse
 import json
 import os
+from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 
 import numpy as np
 import onnxruntime as ort
+
+PRESSURE_VARS = ["z", "q", "t", "u", "v"]
+PRESSURE_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
 
 
 def _resolve_model_path(models_dir: str, step: int) -> str:
@@ -115,6 +119,136 @@ def _run_step(
     return next_pressure, next_surface, sess.get_providers()
 
 
+def _extract_z500(pressure: np.ndarray) -> np.ndarray:
+    arr = np.asarray(pressure)
+    var_idx = PRESSURE_VARS.index("z")
+    lvl_idx = PRESSURE_LEVELS.index(500)
+    if arr.ndim == 4:  # [C, L, H, W]
+        z = arr[var_idx, lvl_idx]
+    elif arr.ndim == 5:  # [T, C, L, H, W]
+        z = arr[:, var_idx, lvl_idx]
+        if z.ndim == 3 and z.shape[0] == 1:
+            z = z[0]
+    elif arr.ndim == 3:  # [L, H, W]
+        z = arr[lvl_idx]
+    elif arr.ndim == 2:  # [H, W]
+        z = arr
+    else:
+        raise ValueError(f"unsupported pressure shape for z500: {arr.shape}")
+    return np.asarray(z).astype(np.float32, copy=False)
+
+
+def _parse_start_dt(date: str, hour: str) -> datetime | None:
+    if not date or not hour:
+        return None
+    try:
+        return datetime.strptime(f"{date}{hour}", "%Y%m%d%H")
+    except Exception:
+        return None
+
+
+def _step_datetimes(start: datetime | None, steps: List[int]) -> List[datetime]:
+    if start is None:
+        return []
+    times = []
+    total = 0
+    for s in steps:
+        total += s
+        times.append(start + timedelta(hours=total))
+    return times
+
+
+def _era5_pressure_path(root: str, dt: datetime) -> str:
+    stamp = dt.strftime("%Y%m%d%H")
+    return os.path.join(root, f"era5_pressure_{stamp}.nc")
+
+
+def _load_era5_z500(path: str) -> Tuple[np.ndarray | None, str | None]:
+    if not os.path.exists(path):
+        return None, "missing_file"
+    try:
+        import netCDF4 as nc  # lazy import
+    except Exception:
+        return None, "netCDF4_unavailable"
+    ds = nc.Dataset(path)
+    try:
+        if "z" not in ds.variables:
+            return None, "missing_var_z"
+        lvl_name = "level" if "level" in ds.variables else "pressure_level"
+        if lvl_name not in ds.variables:
+            return None, "missing_level_axis"
+        levels = ds[lvl_name][:]
+        lvl_idx = int(np.where(levels == 500)[0][0])
+        z = ds["z"][:]
+        if hasattr(z, "filled"):
+            z = z.filled(np.nan)
+        z500 = np.asarray(z)[0, lvl_idx]
+        return z500.astype(np.float32), None
+    finally:
+        ds.close()
+
+
+def _write_eval_package(
+    out_dir: str,
+    pred_z500: np.ndarray,
+    steps: List[int],
+    date: str | None,
+    hour: str | None,
+    era5_raw_root: str | None,
+) -> Tuple[str, str]:
+    os.makedirs(out_dir, exist_ok=True)
+    eval_path = os.path.join(out_dir, "eval_z500.npz")
+    meta_path = os.path.join(out_dir, "eval_z500_meta.json")
+
+    start_dt = _parse_start_dt(date or "", hour or "")
+    step_times = _step_datetimes(start_dt, steps)
+    gt_list = []
+    gt_paths = []
+    gt_missing = []
+    gt_z500 = None
+    if era5_raw_root and step_times:
+        for dt in step_times:
+            p = _era5_pressure_path(era5_raw_root, dt)
+            gt_paths.append(p)
+            arr, err = _load_era5_z500(p)
+            if err:
+                gt_missing.append({"path": p, "reason": err})
+            else:
+                gt_list.append(arr)
+        if gt_list and not gt_missing:
+            gt_z500 = np.stack(gt_list, axis=0)
+
+    if pred_z500.ndim == 2:
+        pred_store = pred_z500[None, ...]
+    else:
+        pred_store = pred_z500
+
+    savez_kwargs = {"pred_z500": pred_store}
+    if gt_z500 is not None:
+        savez_kwargs["gt_z500"] = gt_z500
+    np.savez(eval_path, **savez_kwargs)
+
+    meta = {
+        "var": "z500",
+        "units": "m^2 s^-2",
+        "pressure_vars": PRESSURE_VARS,
+        "pressure_levels": PRESSURE_LEVELS,
+        "date": date,
+        "hour": hour,
+        "steps": steps,
+        "step_datetimes_utc": [dt.strftime("%Y-%m-%dT%H:%M:%SZ") for dt in step_times],
+        "pred_shape": list(pred_store.shape),
+        "pred_dtype": str(pred_store.dtype),
+        "pred_path": eval_path,
+        "gt_paths": gt_paths,
+        "gt_missing": gt_missing,
+        "gt_shape": list(gt_z500.shape) if gt_z500 is not None else None,
+    }
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, indent=2)
+    return eval_path, meta_path
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "/root/autodl-tmp/pangu-weather-repro/models"))
@@ -127,6 +261,9 @@ def main() -> None:
     p.add_argument("--gpu-mem-limit-mb", type=int, default=int(os.environ.get("ORT_GPU_MEM_LIMIT_MB", "0")))
     p.add_argument("--threads", type=int, default=int(os.environ.get("OMP_NUM_THREADS", "1")))
     p.add_argument("--noarena", action="store_true")
+    p.add_argument("--date", default=os.environ.get("DATE", ""))
+    p.add_argument("--hour", default=os.environ.get("HOUR", ""))
+    p.add_argument("--era5-raw-root", default=os.environ.get("ERA5_RAW_ROOT", ""))
     args = p.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
@@ -147,6 +284,7 @@ def main() -> None:
         "surface_shape": list(surface.shape),
         "outputs": [],
     }
+    pred_z500_list: List[np.ndarray] = []
 
     for idx, step in enumerate(steps, start=1):
         model_path = _resolve_model_path(args.models_dir, step)
@@ -187,12 +325,31 @@ def main() -> None:
             "providers": providers,
         })
 
+        pred_z500 = _extract_z500(pressure)
+        if pred_z500.ndim == 3 and pred_z500.shape[0] == 1:
+            pred_z500 = pred_z500[0]
+        if pred_z500.ndim != 2:
+            raise ValueError(f"z500 must be 2D per step, got {pred_z500.shape}")
+        pred_z500_list.append(pred_z500)
+
         print(f"{idx} {stamp} providers: {providers}")
 
     rep_path = os.path.join(args.out_dir, "rollout_report.json")
     with open(rep_path, "w") as f:
         json.dump(report, f, indent=2)
     print("✅ rollout ok, wrote:", rep_path)
+
+    pred_z500_stack = np.stack(pred_z500_list, axis=0) if pred_z500_list else np.zeros((0,))
+    eval_path, meta_path = _write_eval_package(
+        args.out_dir,
+        pred_z500_stack,
+        steps,
+        args.date,
+        args.hour,
+        args.era5_raw_root,
+    )
+    print("✅ eval package:", eval_path)
+    print("✅ eval meta:", meta_path)
 
 
 if __name__ == "__main__":

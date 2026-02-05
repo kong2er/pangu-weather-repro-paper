@@ -174,3 +174,22 @@ ORT_GPU_MEM_LIMIT_MB=12000 uv run python tools/day4_rollout.py --steps 24,6 --no
 ```bash
 uv run python tools/day4_rollout.py --steps 24,6 --force-cpu
 ```
+
+---
+
+## Day5：RMSE 评估（z500）
+
+### 1) 生成评估包（rollout 同时导出）
+```bash
+uv run python tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"
+# 评估包默认输出：$OUTPUT_ROOT/day4_rollout_30h/eval_z500.npz
+# 元信息：$OUTPUT_ROOT/day4_rollout_30h/eval_z500_meta.json
+```
+
+### 2) 计算 RMSE
+```bash
+uv run python tools/eval_rmse.py \
+  --pred "$OUTPUT_ROOT/day4_rollout_30h/eval_z500.npz" \
+  --var z500 \
+  --out artifacts/day5/rmse.csv
+```
