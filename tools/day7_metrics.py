@@ -8,6 +8,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from tools._metrics import acc_simple, load_latitude, rmse, rmse_latw
+
 SURFACE_ORDER = ["msl", "u10", "v10", "t2m"]
 PRESSURE_ORDER = ["z", "q", "t", "u", "v"]
 PRESSURE_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
@@ -75,7 +77,7 @@ def _parse_var(var: str) -> Tuple[str, str, int | None]:
     raise ValueError(f"unsupported var: {var}. Use surface vars {SURFACE_ORDER} or pressure vars like z500/t850/u850/v850/q850")
 
 
-def _load_pred_field(rollout_dir: str, var: str, lead: int) -> np.ndarray:
+def _load_pred_field(rollout_dir: str, var: str, lead: int) -> Tuple[np.ndarray, str]:
     stamp = f"{int(lead)}h"
     surface_path = os.path.join(rollout_dir, f"rollout_surface_{stamp}.npy")
     pressure_path = os.path.join(rollout_dir, f"rollout_pressure_{stamp}.npy")
@@ -89,13 +91,13 @@ def _load_pred_field(rollout_dir: str, var: str, lead: int) -> np.ndarray:
         if surface.ndim != 3:
             raise ValueError(f"surface shape unexpected: {surface.shape}")
         idx = SURFACE_ORDER.index(base)
-        return surface[idx]
+        return surface[idx], surface_path
 
     if pressure.ndim != 4:
         raise ValueError(f"pressure shape unexpected: {pressure.shape}")
     v_idx = PRESSURE_ORDER.index(base)
     l_idx = PRESSURE_LEVELS.index(level)
-    return pressure[v_idx, l_idx]
+    return pressure[v_idx, l_idx], pressure_path
 
 
 def _load_gt_field(era5_root: str, var: str, dt: datetime) -> Tuple[np.ndarray, str]:
@@ -129,14 +131,6 @@ def _load_gt_field(era5_root: str, var: str, dt: datetime) -> Tuple[np.ndarray, 
         return np.asarray(data)[0, l_idx].astype(np.float32), pressure_path
     finally:
         ds.close()
-
-
-def _rmse(pred: np.ndarray, gt: np.ndarray) -> Tuple[float, int]:
-    mask = np.isfinite(pred) & np.isfinite(gt)
-    if mask.sum() == 0:
-        raise ValueError("no valid points for RMSE")
-    diff = pred.astype(np.float64) - gt.astype(np.float64)
-    return float(np.sqrt(np.nanmean((diff[mask]) ** 2))), int(mask.sum())
 
 
 def main() -> None:
@@ -180,22 +174,39 @@ def main() -> None:
     start_dt = _parse_date_hour(date, hour)
     lead_dts = {h: dt for h, dt in zip(lead_hours_available, _lead_datetimes(start_dt, lead_hours_available))}
 
+    lat_cache: Dict[str, np.ndarray] = {}
     rows = []
     for var in vars_list:
         for lead in leads:
-            pred = _load_pred_field(rollout_dir, var, lead)
+            pred, pred_path = _load_pred_field(rollout_dir, var, lead)
             gt, gt_path = _load_gt_field(era5_root, var, lead_dts[lead])
             if pred.shape != gt.shape:
                 raise ValueError(f"shape mismatch var={var} lead={lead} pred={pred.shape} gt={gt.shape}")
-            rmse, n = _rmse(pred, gt)
+
+            if gt_path not in lat_cache:
+                try:
+                    lat_cache[gt_path] = load_latitude(gt_path)
+                except Exception as e:
+                    raise ValueError(f"latitude not found in {gt_path}. {e}. Please provide ERA5 file with latitude.")
+            lat = lat_cache[gt_path]
+
+            r = rmse(pred, gt)
+            rw = rmse_latw(pred, gt, lat)
+            a = acc_simple(pred, gt, None)
+            aw = acc_simple(pred, gt, lat)
+
             rows.append({
                 "var": var,
                 "lead": str(lead),
-                "rmse": rmse,
-                "n": n,
+                "rmse": r,
+                "rmse_latw": rw,
+                "acc": a,
+                "acc_latw": aw,
+                "n": int(np.isfinite(gt).sum()),
                 "date": date,
                 "hour": hour,
-                "pred_path": rollout_dir,
+                "rollout_dir": rollout_dir,
+                "pred_path": pred_path,
                 "gt_path": gt_path,
             })
 
@@ -203,7 +214,20 @@ def main() -> None:
     with open(args.out, "w", newline="") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["var", "lead", "rmse", "n", "date", "hour", "pred_path", "gt_path"],
+            fieldnames=[
+                "var",
+                "lead",
+                "rmse",
+                "rmse_latw",
+                "acc",
+                "acc_latw",
+                "n",
+                "date",
+                "hour",
+                "rollout_dir",
+                "pred_path",
+                "gt_path",
+            ],
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -216,10 +240,17 @@ def main() -> None:
         f.write(f"- Leads: {', '.join(str(x) for x in leads)}\n")
         f.write(f"- Rollout: {rollout_dir}\n")
         f.write(f"- Output CSV: {args.out}\n\n")
-        f.write("| var | lead | rmse | n |\n")
-        f.write("|---|---|---:|---:|\n")
+        f.write("Metrics:\n")
+        f.write("- rmse: unweighted RMSE\n")
+        f.write("- rmse_latw: latitude-weighted RMSE (cos(lat))\n")
+        f.write("- acc: anomaly correlation using GT mean as climatology\n")
+        f.write("- acc_latw: latitude-weighted ACC\n\n")
+        f.write("| var | lead | rmse | rmse_latw | acc | acc_latw | n |\n")
+        f.write("|---|---|---:|---:|---:|---:|---:|\n")
         for r in rows:
-            f.write(f"| {r['var']} | {r['lead']} | {r['rmse']:.6f} | {r['n']} |\n")
+            f.write(
+                f"| {r['var']} | {r['lead']} | {r['rmse']:.6f} | {r['rmse_latw']:.6f} | {r['acc']:.6f} | {r['acc_latw']:.6f} | {r['n']} |\\n"
+            )
 
     print("[day7] out:", args.out)
     print("[day7] md:", args.md)

@@ -14,10 +14,17 @@ def _read_csv(path: str) -> List[Dict[str, str]]:
         return [r for r in reader]
 
 
+def _default_out(metric: str) -> str:
+    if metric in ("acc", "acc_latw"):
+        return os.path.join("figures", "day7", "summary_acc.png")
+    return os.path.join("figures", "day7", "summary_rmse.png")
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--csv", default=os.path.join("artifacts", "day7", "metrics_summary.csv"))
-    p.add_argument("--out", default=os.path.join("figures", "day7", "summary_rmse.png"))
+    p.add_argument("--metric", default="rmse_latw")
+    p.add_argument("--out", default="")
     args = p.parse_args()
 
     if not os.path.exists(args.csv):
@@ -31,6 +38,10 @@ def main() -> None:
     print("[day7_plot] columns:", list(rows[0].keys()))
     print("[day7_plot] rows:", len(rows))
 
+    metric = args.metric
+    if metric not in rows[0]:
+        raise ValueError(f"metric {metric} not found in csv")
+
     vars_list = sorted(set(r["var"] for r in rows))
     leads_list = sorted(set(int(r["lead"]) for r in rows))
 
@@ -40,9 +51,10 @@ def main() -> None:
         l = int(r["lead"])
         i = vars_list.index(v)
         j = leads_list.index(l)
-        matrix[i, j] = float(r["rmse"])
+        matrix[i, j] = float(r[metric])
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    out_path = args.out if args.out else _default_out(metric)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(7.5, 4.5), dpi=160)
     x = np.arange(len(vars_list))
@@ -54,15 +66,15 @@ def main() -> None:
 
     ax.set_xticks(x + width * (len(leads_list) - 1) / 2)
     ax.set_xticklabels(vars_list)
-    ax.set_ylabel("RMSE")
-    ax.set_title("RMSE Summary by Variable and Lead")
+    ax.set_ylabel(metric)
+    ax.set_title(f"{metric} Summary by Variable and Lead")
     ax.legend(loc="best")
     ax.grid(axis="y", linestyle=":", alpha=0.5)
 
-    fig.savefig(args.out, dpi=160, bbox_inches="tight")
+    fig.savefig(out_path, dpi=160, bbox_inches="tight")
     plt.close(fig)
 
-    print("[day7_plot] out:", args.out)
+    print("[day7_plot] out:", out_path)
 
 
 if __name__ == "__main__":

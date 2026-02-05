@@ -10,6 +10,7 @@
 - Day5: RMSE 指标生成
 - Day6: 论文级示例图生成
 - Day7: 多变量多 lead 汇总生成
+- Day8: lat-weighted RMSE + ACC 对齐增强
 
 ---
 
@@ -97,7 +98,7 @@ uv run python tools/run_smoke_gpu_noarena.py --step 24 | head -n 5
 
 ## Day4: 多步 Rollout + 评估包
 - Goal: 多步预测并导出评估包。
-- Why: Day5 的 RMSE 与 Day6/Day7 的可视化都依赖评估包。
+- Why: Day5 的 RMSE 与 Day6/Day7/Day8 的可视化都依赖评估包。
 - Commands (不跨天，建议新手):
 ```bash
 source configs/default.env
@@ -118,7 +119,7 @@ ls -lh "$OUTPUT_ROOT/day4_rollout_06h" | grep eval_z500
 - If it fails:
 - GPU OOM: 添加 `--noarena` 或 `ORT_GPU_MEM_LIMIT_MB=12000`。
 - 输出目录为空: 确认 `--out-dir` 指向 `$OUTPUT_ROOT`。
-- 24h/30h 跨天: 需要 Day5/Day7 的 ERA5 `20230710 00/06` 真值文件。
+- 24h/30h 跨天: 需要 Day5/Day7/Day8 的 ERA5 `20230710 00/06` 真值文件。
 
 ---
 
@@ -175,14 +176,7 @@ uv run python tools/plot_fields.py --var z500 --lead 6 | head -n 6
 ```bash
 source configs/default.env
 uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
-uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --out figures/day7/summary_rmse.png
-```
-- Commands (可选 24h，需补 ERA5 20230710 00):
-```bash
-uv run python scripts/03_download_era5_single.py --date 20230710 --hour 00
-uv run python scripts/03_download_era5_pressure.py --date 20230710 --hour 00
-uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6,24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
-uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --out figures/day7/summary_rmse.png
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
 ```
 - Outputs:
 - `artifacts/day7/metrics_summary.csv`
@@ -202,6 +196,33 @@ uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifact
 - `meta not found`: 先完成 Day4。
 - `missing rollout outputs`: lead 必须在 Day4 steps 范围内，或重新跑 rollout。
 - `FileNotFoundError era5_single/pressure`: 补齐对应 ERA5 时次。
+
+---
+
+## Day8: 论文口径对齐增强（lat-weighted RMSE + ACC）
+- Goal: 对齐论文常用口径（纬度加权 RMSE 与 ACC）。
+- Why: 更符合论文常用评估指标，便于对比与汇报。
+- Commands (默认不跨天):
+```bash
+source configs/default.env
+uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric acc_latw --out figures/day7/summary_acc.png
+```
+- Outputs:
+- `artifacts/day7/metrics_summary.csv`
+- `figures/day7/summary_rmse.png`
+- `figures/day7/summary_acc.png`
+- Verify:
+```bash
+ls -lh artifacts/day7/metrics_summary.csv
+head -n 5 artifacts/day7/metrics_summary.csv
+ls -lh figures/day7/summary_rmse.png
+ls -lh figures/day7/summary_acc.png
+```
+- If it fails:
+- `latitude not found`: 确保 ERA5 文件包含 `latitude` 变量。
+- `acc` 为 NaN: 检查 GT 是否全 NaN 或常数场。
 
 ---
 

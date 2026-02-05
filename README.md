@@ -7,6 +7,7 @@
 - Day5 RMSE 指标计算（z500）
 - Day6 论文级示例图（GT/Pred/Error 三联图 + RMSE 曲线）
 - Day7 可扩展评估与汇总（多变量、多 lead）
+- Day8 论文口径对齐增强（lat-weighted RMSE + ACC）
 
 ## Repository Layout
 ```text
@@ -101,14 +102,21 @@ uv run python tools/plot_rmse_curve.py --var z500
 默认不跨天，仅 6h：
 ```bash
 uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
-uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --out figures/day7/summary_rmse.png
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
 ```
 如果需要 24h，请先下载 `20230710 00` 的 ERA5 single/pressure。
+
+## Day8 Quickstart (lat-weighted RMSE + ACC)
+```bash
+uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
+uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric acc_latw --out figures/day7/summary_acc.png
+```
 
 ## Output Locations
 - 大文件：`$OUTPUT_ROOT` 或 `$DATA_ROOT`
 - 指标表：`artifacts/day5/rmse.csv`、`artifacts/day7/metrics_summary.csv`
-- 示例图：`figures/day6/`、`figures/day7/summary_rmse.png`
+- 示例图：`figures/day6/`、`figures/day7/summary_rmse.png`、`figures/day7/summary_acc.png`
 - 结果说明：`docs/day6_results.md`、`docs/day7_results.md`
 
 ## Reproducibility Rules
