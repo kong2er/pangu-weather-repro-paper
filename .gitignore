@@ -39,3 +39,6 @@ outputs/
 **/_archives/
 *.tgz
 configs/local.env
+
+# packaging
+pangu_weather_repro.egg-info/
