@@ -2,6 +2,7 @@ import os, json, time, hashlib
 import numpy as np
 import onnxruntime as ort
 
+from pangu_weather_repro.contracts import build_feed_dict, InputSpec, validate_feed_against_onnx_inputs
 WORK = "/root/autodl-tmp/pangu-weather-repro"
 MODEL = f"{WORK}/models/pangu_weather_6.onnx"
 P_PATH = f"{WORK}/processed/pressure.npy"
@@ -35,27 +36,6 @@ def log(msg: str):
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
-def to_tuple(shape):
-    return tuple(int(x) for x in shape)
-
-def match_or_squeeze_singleton(name: str, arr: np.ndarray, expected_shape):
-    """
-    Accept either exact match, or match after removing a single singleton dim (value==1).
-    We ONLY remove singleton dims; no reshaping/reordering.
-    """
-    exp = to_tuple(expected_shape)
-    if arr.shape == exp:
-        return arr, None
-
-    # try squeeze one singleton dimension to match
-    for axis, dim in enumerate(arr.shape):
-        if dim == 1:
-            squeezed = np.squeeze(arr, axis=axis)
-            if squeezed.shape == exp:
-                return squeezed, f"squeeze axis={axis} ({arr.shape} -> {squeezed.shape})"
-
-    raise ValueError(f"{name}: shape mismatch. expected={exp}, got={arr.shape} (no safe singleton squeeze found)")
-
 def main():
     log(f"[info] model={MODEL}")
     log(f"[info] pressure={P_PATH}")
@@ -83,15 +63,11 @@ def main():
     if np.isnan(surface).any():
         raise ValueError("surface contains NaN")
 
-    pressure2, fix_p = match_or_squeeze_singleton("pressure->input", pressure, in_specs["input"].shape)
-    surface2,  fix_s = match_or_squeeze_singleton("surface->input_surface", surface, in_specs["input_surface"].shape)
-
-    if fix_p: log(f"[fix] pressure: {fix_p}")
-    if fix_s: log(f"[fix] surface: {fix_s}")
-
-    feed = {"input": pressure2, "input_surface": surface2}
-    log(f"[feed] input shape={pressure2.shape} dtype={pressure2.dtype}")
-    log(f"[feed] input_surface shape={surface2.shape} dtype={surface2.dtype}")
+    feed = build_feed_dict(pressure, surface)
+    specs = [InputSpec(name=i.name, shape=tuple(i.shape)) for i in sess.get_inputs()]
+    validate_feed_against_onnx_inputs(feed, specs)
+    log(f"[feed] input shape={feed['input'].shape} dtype={feed['input'].dtype}")
+    log(f"[feed] input_surface shape={feed['input_surface'].shape} dtype={feed['input_surface'].dtype}")
 
     t0 = time.time()
     outs = sess.run(None, feed)
@@ -113,7 +89,7 @@ def main():
             "pressure": {"path": P_PATH, "sha256": sha256(P_PATH), **stats(pressure)},
             "surface":  {"path": S_PATH, "sha256": sha256(S_PATH), **stats(surface)},
         },
-        "applied_fixes": {"pressure": fix_p, "surface": fix_s},
+        "applied_fixes": {"pressure": None, "surface": None},
         "providers": sess.get_providers(),
         "inference_sec": dt,
         "outputs": saved,

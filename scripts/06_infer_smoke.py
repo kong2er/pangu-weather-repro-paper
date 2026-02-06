@@ -1,7 +1,12 @@
-import os, argparse, json, hashlib
+import os
+import argparse
+import json
+import hashlib
+
 import numpy as np
 import onnxruntime as ort
-import os
+
+from pangu_weather_repro.contracts import build_feed_dict, validate_feed_against_onnx_inputs, InputSpec
 
 def sha256_file(path: str) -> str:
     h = hashlib.sha256()
@@ -73,12 +78,6 @@ def main():
     surface = np.load(os.path.join(args.processed_dir, "surface.npy")).astype(np.float32)
     pressure = np.load(os.path.join(args.processed_dir, "pressure.npy")).astype(np.float32)
 
-    # squeeze time dim (your current files are (C,1,H,W) and (C,1,L,H,W))
-    if surface.ndim == 4 and surface.shape[1] == 1:
-        surface = surface[:, 0]
-    if pressure.ndim == 5 and pressure.shape[1] == 1:
-        pressure = pressure[:, 0]
-
     model_name = f"pangu_weather_{args.step}.onnx"
     model_path = os.path.join(args.models_dir, model_name)
     if not os.path.exists(model_path):
@@ -102,21 +101,10 @@ def main():
     ins = sess.get_inputs()
     outs = sess.get_outputs()
 
-    # Map inputs by name heuristics
-    feed = {}
-    for i in ins:
-        name = i.name.lower()
-        if "surface" in name:
-            feed[i.name] = surface
-        elif "upper" in name or "pressure" in name:
-            feed[i.name] = pressure
-        else:
-            # last resort: fill in order (surface first, then pressure)
-            pass
+    feed = build_feed_dict(pressure, surface)
 
-    # Fallback: if names unknown, feed by index order
-    if len(feed) != len(ins):
-        feed = {ins[0].name: surface, ins[1].name: pressure}
+    specs = [InputSpec(name=i.name, shape=tuple(i.shape)) for i in ins]
+    validate_feed_against_onnx_inputs(feed, specs)
 
     out_names = [o.name for o in outs]
     feed = _fix_swapped_feed(sess, feed)
