@@ -65,6 +65,16 @@ ruff check .
 ruff format --check .
 ```
 
+## FAQ
+Q: 为什么 smoke 不加载 ONNX 或权重？
+A: 目标是快速校验“预处理 → 输入张量组装 → feed dict”的契约，避免 shape/rank/变量顺序问题，因此仅做 contracts 校验。
+
+Q: smoke 为什么这么快？
+A: 使用广播零张量做形状验证，不分配完整 721x1440 大数组，保证 < 60s。
+
+Q: CI 会下载 ERA5 或模型吗？
+A: 不会。CI 仅跑 ruff/pytest/smoke 的 CPU-only 离线检查，不访问 ERA5/CDS，也不需要任何密钥。
+
 ## Full Run (10–15 min, Day4 → Day6 最小闭环，不跨天)
 > 目标：跑通最小闭环并生成两张图（需要模型权重 + ERA5）。
 依赖说明：
