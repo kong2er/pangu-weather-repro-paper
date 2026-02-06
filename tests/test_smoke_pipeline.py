@@ -12,11 +12,14 @@ from pangu_weather_repro.contracts import (
 )
 
 
+def _broadcast_zeros(shape):
+    base = np.zeros((1,), dtype=np.float32)
+    return np.broadcast_to(base, shape)
+
+
 def test_smoke_pipeline_feed_contract():
-    surface = np.zeros((len(SURFACE_VARS), 1, LAT_SIZE, LON_SIZE), dtype=np.float32)
-    upper = np.zeros(
-        (len(UPPER_VARS), 1, len(PRESSURE_LEVELS), LAT_SIZE, LON_SIZE), dtype=np.float32
-    )
+    surface = _broadcast_zeros((len(SURFACE_VARS), 1, LAT_SIZE, LON_SIZE))
+    upper = _broadcast_zeros((len(UPPER_VARS), 1, len(PRESSURE_LEVELS), LAT_SIZE, LON_SIZE))
 
     feed = build_feed_dict(upper, surface)
 

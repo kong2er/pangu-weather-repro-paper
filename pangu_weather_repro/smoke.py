@@ -19,12 +19,14 @@ from .contracts import (
 
 
 def _make_dummy_surface() -> np.ndarray:
-    return np.zeros((len(SURFACE_VARS), 1, LAT_SIZE, LON_SIZE), dtype=np.float32)
+    base = np.zeros((1,), dtype=np.float32)
+    return np.broadcast_to(base, (len(SURFACE_VARS), 1, LAT_SIZE, LON_SIZE))
 
 
 def _make_dummy_upper() -> np.ndarray:
-    return np.zeros(
-        (len(UPPER_VARS), 1, len(PRESSURE_LEVELS), LAT_SIZE, LON_SIZE), dtype=np.float32
+    base = np.zeros((1,), dtype=np.float32)
+    return np.broadcast_to(
+        base, (len(UPPER_VARS), 1, len(PRESSURE_LEVELS), LAT_SIZE, LON_SIZE)
     )
 
 
@@ -43,6 +45,11 @@ def main() -> int:
     t0 = time.time()
     surface = _make_dummy_surface()
     upper = _make_dummy_upper()
+
+    if SURFACE_VARS != ("msl", "u10", "v10", "t2m"):
+        raise ValueError(f"surface var order mismatch: {SURFACE_VARS}")
+    if UPPER_VARS != ("z", "q", "t", "u", "v"):
+        raise ValueError(f"upper var order mismatch: {UPPER_VARS}")
 
     feed = build_feed_dict(upper, surface)
     validate_feed_against_onnx_inputs(feed, _mock_onnx_inputs())
