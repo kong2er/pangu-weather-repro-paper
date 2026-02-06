@@ -6,7 +6,7 @@ ROLL_STEPS_6H := 6
 ROLL_STEPS_30H := 24,6
 ROLL_STEPS_360H := 24,24,24,24,24,24,24,24,24,24,24,24,24,24,24
 
-.PHONY: env models era5-0900 era5-0906 preprocess rollout-6h rollout-30h rollout-360h day7 day8
+.PHONY: env models era5-0900 era5-0906 preprocess rollout-6h rollout-30h rollout-360h day7 day8 smoke smoke-runtime check
 
 env:
 	uv venv --python 3.10
@@ -52,3 +52,15 @@ day8:
 	uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
 	uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
 	uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric acc_latw --out figures/day7/summary_acc.png
+
+smoke:
+	uv run python -m pangu_weather_repro.smoke
+	uv run python tools/check_repo_health.py
+
+smoke-runtime:
+	source configs/default.env
+	uv run python scripts/05_validate_inputs.py
+	uv run python scripts/06_infer_smoke.py --step 6
+
+check:
+	uv run python tools/check_repo_health.py

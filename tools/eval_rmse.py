@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""Day5 RMSE evaluation.
+
+Goal: Compute RMSE from eval_z500 package or explicit pred/gt inputs.
+Inputs: eval_z500.npz (or pred/gt files) and optional ERA5 for gt.
+Outputs: artifacts/day5/rmse.csv
+Example: uv run python tools/eval_rmse.py --pred "$OUTPUT_ROOT/day4_rollout_06h/eval_z500.npz" --var z500 --out artifacts/day5/rmse.csv
+"""
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -117,6 +126,17 @@ def main() -> None:
     p.add_argument("--var", default="z500")
     p.add_argument("--out", default=os.path.join("artifacts", "day5", "rmse.csv"))
     args = p.parse_args()
+
+    if not os.path.exists(args.pred):
+        raise FileNotFoundError(
+            f"pred not found: {args.pred}. "
+            "Run Day4 rollout to produce eval_z500.npz or pass a valid --pred."
+        )
+    if args.gt and not os.path.exists(args.gt):
+        raise FileNotFoundError(
+            f"gt not found: {args.gt}. "
+            "Pass a valid --gt path or omit --gt to use eval package metadata."
+        )
 
     pred, gt, meta, gt_src = _load_pred_gt(args.pred, args.gt or None, args.var)
 

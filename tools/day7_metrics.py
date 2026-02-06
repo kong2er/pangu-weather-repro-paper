@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""Day7 metrics summary.
+
+Goal: Compute RMSE/ACC (weighted and unweighted) for rollout outputs.
+Inputs: rollout outputs under OUTPUT_ROOT and ERA5 under ERA5_RAW_ROOT.
+Outputs: artifacts/day7/metrics_summary.csv and docs/day7_results.md
+Example: uv run python tools/day7_metrics.py --vars z500,t2m,u10 --leads 6 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+"""
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -101,7 +110,13 @@ def _load_pred_field(rollout_dir: str, var: str, lead: int) -> Tuple[np.ndarray,
 
 
 def _load_gt_field(era5_root: str, var: str, dt: datetime) -> Tuple[np.ndarray, str]:
-    import netCDF4 as nc
+    try:
+        import netCDF4 as nc
+    except Exception as exc:
+        raise RuntimeError(
+            "netCDF4 is required to load ERA5 files. "
+            "Install netCDF4 or run on a machine with ERA5 dependencies."
+        ) from exc
 
     single_path, pressure_path = _era5_paths(era5_root, dt)
     kind, base, level = _parse_var(var)
@@ -149,6 +164,11 @@ def main() -> None:
     meta_path = os.path.join(rollout_dir, "eval_z500_meta.json")
     if not os.path.exists(meta_path):
         raise FileNotFoundError(f"meta not found: {meta_path}. Run Day4 rollout first.")
+    if not os.path.isdir(era5_root):
+        raise FileNotFoundError(
+            f"ERA5_RAW_ROOT not found: {era5_root}. "
+            "Download ERA5 or set ERA5_RAW_ROOT to the correct directory."
+        )
 
     meta = _load_meta(meta_path)
     date = meta.get("date", "")

@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
+"""Metric helpers used by Day7/Day8 evaluation scripts."""
+from __future__ import annotations
+
 import numpy as np
-import netCDF4 as nc
 
 
 def load_latitude(path: str) -> np.ndarray:
+    try:
+        import netCDF4 as nc
+    except Exception as exc:
+        raise RuntimeError(
+            "netCDF4 is required to read latitude from ERA5. "
+            "Install netCDF4 or run on a machine with ERA5 dependencies."
+        ) from exc
     ds = nc.Dataset(path)
     try:
         if "latitude" in ds.variables:
@@ -21,7 +30,7 @@ def lat_weights(lat: np.ndarray) -> np.ndarray:
     return np.cos(np.deg2rad(lat))
 
 
-def _broadcast_weights(w: np.ndarray, shape: tuple) -> np.ndarray:
+def _broadcast_weights(w: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
     if len(shape) == 2:
         return w.reshape((-1, 1))
     if len(shape) == 3:

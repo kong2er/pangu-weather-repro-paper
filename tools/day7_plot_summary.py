@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
+"""Day7 summary plot.
+
+Goal: Plot metric summary CSV into a bar chart figure.
+Inputs: artifacts/day7/metrics_summary.csv
+Outputs: figures/day7/summary_rmse.png or summary_acc.png
+Example: uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
+"""
+from __future__ import annotations
+
 import argparse
 import csv
 import os
 from typing import Dict, List
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -26,6 +34,13 @@ def main() -> None:
     p.add_argument("--metric", default="rmse_latw")
     p.add_argument("--out", default="")
     args = p.parse_args()
+
+    try:
+        import matplotlib.pyplot as plt
+    except Exception as exc:
+        raise RuntimeError(
+            "matplotlib is required to plot summary figures. Install matplotlib or run in a plotting env."
+        ) from exc
 
     if not os.path.exists(args.csv):
         raise FileNotFoundError(f"metrics_summary.csv not found: {args.csv}. Run Day7 metrics first.")

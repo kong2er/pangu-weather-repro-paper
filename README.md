@@ -54,15 +54,27 @@ source configs/local.env
 ```
 说明：`configs/local.env` 需你自行创建，参考 `configs/default.env`。
 
+## Fresh Clone (开箱即用)
+```bash
+uv sync
+make smoke
+```
+
 ## Quickstart (离线 smoke，< 1 min)
 > 目标：无需模型/ERA5/密钥，在 CPU 上验证“预处理 → 张量组装 → feed dict”契约。
 
 ```bash
-pip install -e ".[dev]"
-python -m pangu_weather_repro.smoke
-pytest -q
-ruff check .
-ruff format --check .
+uv sync
+make smoke
+```
+
+## Smoke Types
+- CI smoke（无数据、无 GPU）：`uv sync` → `make smoke` → `uv run pytest -q`
+- Runtime smoke（有数据/模型）：`source configs/default.env` → `make smoke-runtime`
+
+## Repo Health Check
+```bash
+uv run python tools/check_repo_health.py
 ```
 
 ## FAQ
@@ -73,7 +85,7 @@ Q: smoke 为什么这么快？
 A: 使用广播零张量做形状验证，不分配完整 721x1440 大数组，保证 < 60s。
 
 Q: CI 会下载 ERA5 或模型吗？
-A: 不会。CI 仅跑 ruff/pytest/smoke 的 CPU-only 离线检查，不访问 ERA5/CDS，也不需要任何密钥。
+A: 不会。CI 仅跑 smoke/pytest/health-check 的 CPU-only 离线检查，不访问 ERA5/CDS，也不需要任何密钥。
 
 ## Full Run (10–15 min, Day4 → Day6 最小闭环，不跨天)
 > 目标：跑通最小闭环并生成两张图（需要模型权重 + ERA5）。
@@ -151,10 +163,13 @@ make rollout-30h
 make rollout-360h
 make day7
 make day8
+make smoke
+make smoke-runtime
+make check
 ```
 
 ## Output Locations
-- 大文件：`$OUTPUT_ROOT` 或 `$DATA_ROOT`
+- 大文件：`$OUTPUT_ROOT`
 - 指标表：`artifacts/day5/rmse.csv`、`artifacts/day7/metrics_summary.csv`
 - 示例图：`figures/day6/`、`figures/day7/summary_rmse.png`、`figures/day7/summary_acc.png`
 - 结果说明：`docs/day6_results.md`、`docs/day7_results.md`

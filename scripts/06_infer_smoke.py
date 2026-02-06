@@ -1,10 +1,16 @@
+"""Day3/4 smoke inference.
+
+Goal: Run a minimal ONNX inference to validate end-to-end wiring.
+Inputs: processed inputs under PROCESSED_ROOT and model under MODELS_ROOT.
+Outputs: smoke report and per-output npy files under OUTPUT_ROOT.
+Example: uv run python scripts/06_infer_smoke.py --step 6
+"""
 import os
 import argparse
 import json
 import hashlib
 
 import numpy as np
-import onnxruntime as ort
 
 from pangu_weather_repro.contracts import build_feed_dict, validate_feed_against_onnx_inputs, InputSpec
 
@@ -73,26 +79,42 @@ def main():
     p.add_argument("--threads", type=int, default=int(os.environ.get("OMP_NUM_THREADS", "1")))
     args = p.parse_args()
 
+    try:
+        import onnxruntime as ort
+    except Exception as exc:
+        raise RuntimeError(
+            "onnxruntime is required for smoke inference. Install onnxruntime (CPU) or onnxruntime-gpu."
+        ) from exc
+
     os.makedirs(args.out_dir, exist_ok=True)
 
-    surface = np.load(os.path.join(args.processed_dir, "surface.npy")).astype(np.float32)
-    pressure = np.load(os.path.join(args.processed_dir, "pressure.npy")).astype(np.float32)
+    surface_path = os.path.join(args.processed_dir, "surface.npy")
+    pressure_path = os.path.join(args.processed_dir, "pressure.npy")
+    if not os.path.exists(surface_path):
+        raise FileNotFoundError(
+            f"missing surface.npy: {surface_path}. Run scripts/04_preprocess_era5_to_npy.py first."
+        )
+    if not os.path.exists(pressure_path):
+        raise FileNotFoundError(
+            f"missing pressure.npy: {pressure_path}. Run scripts/04_preprocess_era5_to_npy.py first."
+        )
+    surface = np.load(surface_path).astype(np.float32)
+    pressure = np.load(pressure_path).astype(np.float32)
 
     model_name = f"pangu_weather_{args.step}.onnx"
-    model_path = os.path.join(args.models_dir, model_name)
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(model_path)
+    if args.models_dir:
+        os.environ["MODELS_ROOT"] = args.models_dir
 
     so = ort.SessionOptions()
     so.intra_op_num_threads = args.threads
     so.inter_op_num_threads = 1
 
-    providers = ["CPUExecutionProvider"]
-    if args.use_gpu:
-        # prefer CUDA, fall back to CPU
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-
     model_path = _resolve_model_path(args.step)
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(
+            f"model not found: {model_path}. "
+            "Download models or set MODELS_ROOT/MODEL_PATH."
+        )
 
     providers = _resolve_providers()
 

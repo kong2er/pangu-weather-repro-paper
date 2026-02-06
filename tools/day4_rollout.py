@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""Day4 rollout.
+
+Goal: Run multi-step ONNX rollout and write eval package for Day5+ metrics.
+Inputs: processed surface/pressure (.npy) and ONNX models under MODELS_ROOT.
+Outputs: rollout_pressure_*.npy, rollout_surface_*.npy, eval_z500.npz, meta json.
+Example: uv run python tools/day4_rollout.py --steps 6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_06h"
+"""
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -6,7 +15,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 
 import numpy as np
-import onnxruntime as ort
 
 PRESSURE_VARS = ["z", "q", "t", "u", "v"]
 PRESSURE_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
@@ -16,11 +24,16 @@ def _resolve_model_path(models_dir: str, step: int) -> str:
     name = f"pangu_weather_{step}.onnx"
     path = os.path.join(models_dir, name)
     if not os.path.exists(path):
-        raise FileNotFoundError(path)
+        raise FileNotFoundError(
+            f"model not found: {path}. "
+            "Set MODELS_ROOT or pass --models-dir to point at downloaded ONNX models."
+        )
     return path
 
 
-def _session_options(threads: int, noarena: bool) -> ort.SessionOptions:
+def _session_options(threads: int, noarena: bool):
+    import onnxruntime as ort
+
     so = ort.SessionOptions()
     so.intra_op_num_threads = threads
     so.inter_op_num_threads = 1
@@ -48,8 +61,20 @@ def _providers(use_gpu: bool, gpu_mem_limit_mb: int | None) -> List:
 
 
 def _load_inputs(processed_dir: str) -> Tuple[np.ndarray, np.ndarray]:
-    surface = np.load(os.path.join(processed_dir, "surface.npy")).astype(np.float32)
-    pressure = np.load(os.path.join(processed_dir, "pressure.npy")).astype(np.float32)
+    surface_path = os.path.join(processed_dir, "surface.npy")
+    pressure_path = os.path.join(processed_dir, "pressure.npy")
+    if not os.path.exists(surface_path):
+        raise FileNotFoundError(
+            f"missing surface.npy: {surface_path}. "
+            "Run scripts/04_preprocess_era5_to_npy.py to generate processed inputs."
+        )
+    if not os.path.exists(pressure_path):
+        raise FileNotFoundError(
+            f"missing pressure.npy: {pressure_path}. "
+            "Run scripts/04_preprocess_era5_to_npy.py to generate processed inputs."
+        )
+    surface = np.load(surface_path).astype(np.float32)
+    pressure = np.load(pressure_path).astype(np.float32)
     if surface.ndim == 4 and surface.shape[1] == 1:
         surface = surface[:, 0]
     if pressure.ndim == 5 and pressure.shape[1] == 1:
@@ -57,7 +82,7 @@ def _load_inputs(processed_dir: str) -> Tuple[np.ndarray, np.ndarray]:
     return pressure, surface
 
 
-def _map_inputs(sess: ort.InferenceSession, pressure: np.ndarray, surface: np.ndarray) -> Dict[str, np.ndarray]:
+def _map_inputs(sess, pressure: np.ndarray, surface: np.ndarray) -> Dict[str, np.ndarray]:
     ins = sess.get_inputs()
     feed: Dict[str, np.ndarray] = {}
     for i in ins:
@@ -85,7 +110,7 @@ def _map_inputs(sess: ort.InferenceSession, pressure: np.ndarray, surface: np.nd
     return feed
 
 
-def _split_outputs(sess: ort.InferenceSession, outputs: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+def _split_outputs(sess, outputs: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
     names = [o.name.lower() for o in sess.get_outputs()]
     pressure = None
     surface = None
@@ -109,6 +134,12 @@ def _run_step(
     noarena: bool,
     gpu_mem_limit_mb: int | None,
 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    try:
+        import onnxruntime as ort
+    except Exception as exc:
+        raise RuntimeError(
+            "onnxruntime is required for rollout. Install onnxruntime or run in a prepared env."
+        ) from exc
     so = _session_options(threads, noarena)
     providers = _providers(use_gpu, gpu_mem_limit_mb)
     sess = ort.InferenceSession(model_path, providers=providers, sess_options=so)

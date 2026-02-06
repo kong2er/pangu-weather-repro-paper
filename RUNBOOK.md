@@ -14,6 +14,20 @@
 
 ---
 
+## CI Smoke（无数据、无 GPU）
+- Goal: 确认仓库可安装、脚本可运行、基础测试可通过。
+- Commands:
+```bash
+uv sync
+make smoke
+uv run pytest -q
+```
+
+## Repo Health Check
+```bash
+uv run python tools/check_repo_health.py
+```
+
 ## Day1: 环境、模型与 ERA5 下载
 - Goal: 准备运行环境与基础输入数据。
 - Why: 模型文件与 ERA5 是全流程最基础依赖。
@@ -63,12 +77,7 @@ uv run python scripts/05_validate_inputs.py
 - `$PROCESSED_ROOT/pressure.npy`
 - Verify:
 ```bash
-python - <<'PY'
-import numpy as np, os
-root=os.environ.get('PROCESSED_ROOT')
-print(np.load(os.path.join(root,'surface.npy')).shape)
-print(np.load(os.path.join(root,'pressure.npy')).shape)
-PY
+python -c "import numpy as np, os; root=os.environ.get('PROCESSED_ROOT'); print(np.load(os.path.join(root,'surface.npy')).shape); print(np.load(os.path.join(root,'pressure.npy')).shape)"
 ```
 - If it fails:
 - `FileNotFoundError`: 先完成 Day1 下载。
