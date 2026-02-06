@@ -54,8 +54,23 @@ source configs/local.env
 ```
 说明：`configs/local.env` 需你自行创建，参考 `configs/default.env`。
 
-## Quickstart (10–15 min, Day4 → Day6 最小闭环，不跨天)
-> 目标：跑通最小闭环并生成两张图。
+## Quickstart (离线 smoke，< 1 min)
+> 目标：无需模型/ERA5/密钥，在 CPU 上验证“预处理 → 张量组装 → feed dict”契约。
+
+```bash
+pip install -e ".[dev]"
+python -m pangu_weather_repro.smoke
+pytest -q
+ruff check .
+ruff format --check .
+```
+
+## Full Run (10–15 min, Day4 → Day6 最小闭环，不跨天)
+> 目标：跑通最小闭环并生成两张图（需要模型权重 + ERA5）。
+依赖说明：
+- ERA5：需要可用的 CDS API key（`~/.cdsapirc`），下载目录为 `$ERA5_RAW_ROOT`。
+- 权重：通过 `scripts/01_download_models.sh` 下载到 `$MODELS_ROOT`。
+- 约定目录：`$PROCESSED_ROOT`、`$OUTPUT_ROOT`（见 `configs/default.env`）。
 
 ### 1) 下载模型（Day1）
 ```bash
@@ -134,6 +149,50 @@ make day8
 - 示例图：`figures/day6/`、`figures/day7/summary_rmse.png`、`figures/day7/summary_acc.png`
 - 结果说明：`docs/day6_results.md`、`docs/day7_results.md`
 
+## Contract (代码化约束)
+- 入口文件：`pangu_weather_repro/contracts.py`
+- Surface 变量顺序：`msl, u10, v10, t2m`
+- Upper-air 变量顺序：`z, q, t, u, v`
+- Pressure levels：`[1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]`
+- Grid：`721 x 1440`
+- 坐标范围：lat `[90, -90]`，lon `[0, 359.75]`，分辨率 `0.25°`
+- dtype：`float32`
+- 允许输入 shape：
+  - surface: `(4, 1, 721, 1440)` 或 `(4, 721, 1440)`
+  - upper: `(5, 1, 13, 721, 1440)` 或 `(5, 13, 721, 1440)`
+- ONNX feed keys（本仓库约定）：`input`（upper）与 `input_surface`（surface）
+
+## 实现对齐说明（reference ↔ 本仓库）
+> 说明：以下行级对齐基于本地 clone 的 `kong2er/pangu`（路径 `/tmp/pangu`），对应文件与行号已记录，后续若 reference 更新请同步校验。
+
+- Reference: `pangu/pangu.py`（/tmp/pangu/pangu/pangu.py）
+  - 变量顺序：`surf_vars = ['msl','u10','v10','t2m']` 与 `upper_vars = ['z','q','t','u','v']`
+    - 对应：`pangu_weather_repro/contracts.py` 的 `SURFACE_VARS` / `UPPER_VARS`
+    - 行号：`/tmp/pangu/pangu/pangu.py:116-117`
+  - Pressure levels：`[1000, 925, ..., 50]`
+    - 对应：`pangu_weather_repro/contracts.py` 的 `PRESSURE_LEVELS`
+    - 行号：`/tmp/pangu/pangu/pangu.py:56`
+  - Grid / 坐标范围：`lat=90..-90 (721)`，`lon=0..359.75 (1440)`
+    - 对应：`pangu_weather_repro/contracts.py` 的 `LAT_RANGE/LON_RANGE/LAT_SIZE/LON_SIZE`
+    - 行号：`/tmp/pangu/pangu/pangu.py:54-55`
+  - ONNX feed keys：`session.run(..., {'input': input, 'input_surface': input_surface})`
+    - 对应：`pangu_weather_repro/contracts.py:build_feed_dict`
+    - 行号：`/tmp/pangu/pangu/pangu.py:167`
+  - 输入 dtype：`astype('f4')`
+    - 对应：`pangu_weather_repro/contracts.py` 的 `DTYPE=float32`
+    - 行号：`/tmp/pangu/pangu/pangu.py:107-108`
+  - `gh` 兼容：若 `gh` 存在且 `z` 不存在，则 `z = gh * 9.80665`
+    - 对应：`scripts/04_preprocess_era5_to_npy.py` 直接使用 `z`
+    - 行号：`/tmp/pangu/pangu/pangu.py:105-106`
+
+- Reference: `scripts/era5_to_pangu_input.py`（/tmp/pangu/scripts/era5_to_pangu_input.py）
+  - ERA5 压力层顺序：`PL_LEVELS` 与 `pangu.py` 一致
+    - 对应：`configs/default.yaml` + `pangu_weather_repro/contracts.py`
+    - 行号：`/tmp/pangu/scripts/era5_to_pangu_input.py:8,45`
+  - ERA5 单层变量：`msl, u10, v10, t2m`（同时包含 `u100/v100`）
+    - 对应：`scripts/04_preprocess_era5_to_npy.py` 选取 `msl,u10,v10,t2m`
+    - 行号：`/tmp/pangu/scripts/era5_to_pangu_input.py:22-63`
+
 ## Reproducibility Rules
 - 统一使用 `source configs/default.env` 或 `configs/local.env`。
 - 输出路径固定，评估包与图像均包含日期与 lead time。
@@ -166,5 +225,6 @@ find figures/day7 -maxdepth 1 -name "*.png"
 - ERA5 队列拥堵：等 CDS Successful 后用 `wget` 下载到 `$ERA5_RAW_ROOT`。
 - Day4 GPU OOM：使用 `--noarena` 或设置 `ORT_GPU_MEM_LIMIT_MB`。
 - Day5/Day7 找不到 ERA5：补齐对应时次的 pressure/single 文件。
+- ContractError：检查 `surface/upper` 的 rank 与变量顺序，运行 `python -m pangu_weather_repro.smoke` 快速定位。
 
 详细步骤与排错请阅读 `RUNBOOK.md`。
