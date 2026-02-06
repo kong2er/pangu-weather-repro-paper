@@ -25,3 +25,5 @@ jobs:
           ruff format --check .
       - name: Tests
         run: pytest -q
+      - name: Smoke
+        run: python -m pangu_weather_repro.smoke
