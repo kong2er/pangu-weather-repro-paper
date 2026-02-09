@@ -62,6 +62,12 @@ make env-gpu
 CPU 环境执行（CI/Day8）：`UV_VENV=.venv-cpu .venv-cpu/bin/python ...`
 GPU 环境执行（Day3/4/7 推理）：`UV_VENV=.venv-gpu .venv-gpu/bin/python ...`
 
+快速切换（推荐）：
+```bash
+source scripts/env_cpu.sh
+source scripts/env_gpu.sh
+```
+
 ## Day Plan (每天工作与意义)
 - Day1: 环境搭建与 ERA5 API 连接，确认能下载单个时次数据与模型，保证数据源可达。
 - Day2: ERA5 预处理与变量顺序校验，生成可用的 `surface/pressure` 输入。
@@ -111,24 +117,28 @@ Runtime smoke 作用：在有模型/数据时验证推理链路可运行。
 ## 单独功能调用（含中文说明）
 CPU-only（CI/Day8/离线）：
 ```bash
-UV_VENV=.venv-cpu .venv-cpu/bin/python -m pangu_weather_repro.smoke
+source scripts/env_cpu.sh
+python -m pangu_weather_repro.smoke
 ```
 
 GPU 推理（Day3/4/7）：
 ```bash
 source configs/default.env
-UV_VENV=.venv-gpu .venv-gpu/bin/python tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"
+source scripts/env_gpu.sh
+python tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"
 ```
 
 只跑 RMSE（Day5）：
 ```bash
-UV_VENV=.venv-gpu .venv-gpu/bin/python tools/eval_rmse.py --pred "$OUTPUT_ROOT/day4_rollout_06h/eval_z500.npz" --var z500 --out artifacts/day5/rmse.csv
+source scripts/env_gpu.sh
+python tools/eval_rmse.py --pred "$OUTPUT_ROOT/day4_rollout_06h/eval_z500.npz" --var z500 --out artifacts/day5/rmse.csv
 ```
 
 只跑 Day7 指标：
 ```bash
 source configs/default.env
-UV_VENV=.venv-gpu .venv-gpu/bin/python tools/day7_metrics.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10 --leads 24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
+source scripts/env_gpu.sh
+python tools/day7_metrics.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10 --leads 24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
 ```
 
 ## FAQ
