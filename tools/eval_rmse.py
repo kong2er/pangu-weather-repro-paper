@@ -31,7 +31,14 @@ def _load_meta_for_pred(pred_path: str) -> Dict[str, Any] | None:
 
 
 def _load_era5_z500(path: str) -> np.ndarray:
-    import netCDF4 as nc  # lazy import
+    try:
+        import netCDF4 as nc  # lazy import
+    except Exception as exc:
+        raise RuntimeError(
+            "netCDF4 is required to read ERA5 files. "
+            "If you are in GPU env, run: source scripts/env_gpu.sh "
+            "then: python -m pip install -U netCDF4"
+        ) from exc
     ds = nc.Dataset(path)
     try:
         if "z" not in ds.variables:
