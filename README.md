@@ -54,6 +54,24 @@ source configs/local.env
 ```
 说明：`configs/local.env` 需你自行创建，参考 `configs/default.env`。
 
+## Dual Envs (CPU/GPU 分离，避免依赖互相覆盖)
+```bash
+make env-cpu
+make env-gpu
+```
+CPU 环境执行（CI/Day8）：`UV_VENV=.venv-cpu .venv-cpu/bin/python ...`
+GPU 环境执行（Day3/4/7 推理）：`UV_VENV=.venv-gpu .venv-gpu/bin/python ...`
+
+## Day Plan (每天工作与意义)
+- Day1: 环境搭建与 ERA5 API 连接，确认能下载单个时次数据与模型，保证数据源可达。
+- Day2: ERA5 预处理与变量顺序校验，生成可用的 `surface/pressure` 输入。
+- Day3: 模型加载与单次推理验证，确保 ONNXRuntime 正常且输出尺寸正确。
+- Day4: 多步推理与评估包生成，形成 Day5/6/7 的统一输入。
+- Day5: RMSE 指标计算，验证误差量级与评估流程可信。
+- Day6: 可视化输出，生成论文级示例图与曲线。
+- Day7: 多变量多 lead 汇总评估，形成可扩展指标表与汇总图。
+- Day8: 代码结构与 CI 收官，补 smoke/health-check，确保开箱即用。
+
 ## Fresh Clone (开箱即用)
 ```bash
 uv sync
@@ -154,6 +172,8 @@ uv run python tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.cs
 ## Makefile Shortcuts
 ```bash
 make env
+make env-cpu
+make env-gpu
 make models
 make era5-0900
 make era5-0906
