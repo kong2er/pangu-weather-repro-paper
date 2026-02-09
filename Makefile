@@ -6,11 +6,19 @@ ROLL_STEPS_6H := 6
 ROLL_STEPS_30H := 24,6
 ROLL_STEPS_360H := 24,24,24,24,24,24,24,24,24,24,24,24,24,24,24
 
-.PHONY: env models era5-0900 era5-0906 preprocess rollout-6h rollout-30h rollout-360h day7 day8 smoke smoke-runtime check
+.PHONY: env env-cpu env-gpu models era5-0900 era5-0906 preprocess rollout-6h rollout-30h rollout-360h day7 day8 smoke smoke-runtime check
 
 env:
 	uv venv --python 3.10
 	uv sync
+
+env-cpu:
+	uv venv --python 3.10 .venv-cpu
+	UV_VENV=.venv-cpu uv sync
+
+env-gpu:
+	uv venv --python 3.10 .venv-gpu
+	UV_VENV=.venv-gpu uv sync --extra gpu
 
 models:
 	bash scripts/01_download_models.sh
