@@ -36,8 +36,7 @@ def _load_era5_z500(path: str) -> np.ndarray:
     except Exception as exc:
         raise RuntimeError(
             "netCDF4 is required to read ERA5 files. "
-            "If you are in GPU env, run: source scripts/env_gpu.sh "
-            "then: python -m pip install -U netCDF4"
+            "Run: scripts/install_extras.sh rmse"
         ) from exc
     ds = nc.Dataset(path)
     try:
@@ -134,18 +133,21 @@ def main() -> None:
     p.add_argument("--out", default=os.path.join("artifacts", "day5", "rmse.csv"))
     args = p.parse_args()
 
-    if not os.path.exists(args.pred):
-        raise FileNotFoundError(
-            f"pred not found: {args.pred}. "
-            "Run Day4 rollout to produce eval_z500.npz or pass a valid --pred."
-        )
-    if args.gt and not os.path.exists(args.gt):
-        raise FileNotFoundError(
-            f"gt not found: {args.gt}. "
-            "Pass a valid --gt path or omit --gt to use eval package metadata."
-        )
-
-    pred, gt, meta, gt_src = _load_pred_gt(args.pred, args.gt or None, args.var)
+    try:
+        if not os.path.exists(args.pred):
+            raise FileNotFoundError(
+                f"pred not found: {args.pred}. "
+                "Run Day4 rollout to produce eval_z500.npz or pass a valid --pred."
+            )
+        if args.gt and not os.path.exists(args.gt):
+            raise FileNotFoundError(
+                f"gt not found: {args.gt}. "
+                "Pass a valid --gt path or omit --gt to use eval package metadata."
+            )
+        pred, gt, meta, gt_src = _load_pred_gt(args.pred, args.gt or None, args.var)
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        print(str(exc))
+        raise SystemExit(2)
 
     if pred.shape != gt.shape:
         raise ValueError(f"shape mismatch pred={pred.shape} gt={gt.shape}")

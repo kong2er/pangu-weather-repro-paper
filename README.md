@@ -92,6 +92,26 @@ uv sync
 make smoke
 ```
 
+## Quickstart (GPU, Stable Minimal)
+```bash
+make env-gpu
+scripts/fix_venv_pip.sh
+scripts/install_gpu_deps.sh
+scripts/install_extras.sh rmse
+scripts/install_extras.sh plots
+scripts/run_day3_smoke_gpu.sh
+scripts/run_day5_rmse.sh
+scripts/run_day6_plots.sh
+scripts/regression_minimal.sh
+```
+
+## Quickstart (CPU)
+```bash
+make env-cpu
+source scripts/env_cpu.sh
+python -m pangu_weather_repro.smoke
+```
+
 ## Smoke Types
 - CI smoke（无数据、无 GPU）：`uv sync` → `make smoke` → `uv run pytest -q`
 - Runtime smoke（有数据/模型）：`source configs/default.env` → `make smoke-runtime`
@@ -148,6 +168,16 @@ python tools/day7_metrics.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --var
 ```bash
 source scripts/env_gpu.sh && python -m ensurepip --upgrade && python -m pip install -U pip && ln -sf .venv-gpu/bin/python .venv-gpu/bin/pip
 ```
+
+## Troubleshooting
+- 报错 `ModuleNotFoundError: netCDF4`：`scripts/install_extras.sh rmse`
+- 报错 `ModuleNotFoundError: cdsapi`：`scripts/install_extras.sh download`
+- 报错 `ModuleNotFoundError: matplotlib/cartopy`：`scripts/install_extras.sh plots`
+- 报错 `CUDAExecutionProvider` 不可用 / `libcublasLt.so.12`：`scripts/install_gpu_deps.sh` 后 `source scripts/env_gpu.sh`
+- 报错 `lead not in available leads`：30h rollout 仅支持 lead 24/30，或改用 6h rollout
+- 报错 `missing gt_paths`：使用 `--rollout-dir $OUTPUT_ROOT/day4_rollout_30h` 或补齐 ERA5
+- 报错 `pip logging error`：`scripts/fix_venv_pip.sh`
+- 报错导入路径：用 `scripts/run_gpu.sh <script>` 代替直接 `python`
 
 ## FAQ
 Q: 为什么 smoke 不加载 ONNX 或权重？

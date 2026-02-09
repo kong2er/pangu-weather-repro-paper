@@ -5,7 +5,10 @@ import os
 from datetime import datetime
 from typing import List, Dict
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except Exception as exc:
+    raise RuntimeError("matplotlib missing. Run: scripts/install_extras.sh plots") from exc
 import numpy as np
 
 
@@ -34,9 +37,8 @@ def main() -> None:
     args = p.parse_args()
 
     if not os.path.exists(args.csv):
-        raise FileNotFoundError(
-            f"rmse.csv not found: {args.csv}. Run Day5 eval first."
-        )
+        print(f"rmse.csv not found: {args.csv}. Run Day5 eval first.")
+        raise SystemExit(2)
 
     rows = _read_csv(args.csv)
     if not rows:

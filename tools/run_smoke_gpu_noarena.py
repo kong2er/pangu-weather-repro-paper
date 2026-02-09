@@ -11,9 +11,14 @@ import argparse
 import os
 import runpy
 import sys
+from pathlib import Path
 
 
 def main() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
     p = argparse.ArgumentParser()
     p.add_argument("--script", default="scripts/06_infer_smoke.py")
     args, rest = p.parse_known_args()
@@ -22,7 +27,8 @@ def main() -> None:
         import onnxruntime as ort
     except Exception as exc:
         raise RuntimeError(
-            "onnxruntime is required for GPU smoke. Install onnxruntime-gpu or run on CPU."
+            "onnxruntime is required for GPU smoke. "
+            "Try: scripts/install_gpu_deps.sh"
         ) from exc
 
     # ---- session options: bypass BFCArena limitations ----
@@ -84,7 +90,12 @@ def main() -> None:
     ort.InferenceSession.run = patched_run
 
     sys.argv = [args.script] + rest
-    runpy.run_path(args.script, run_name="__main__")
+    try:
+        runpy.run_path(args.script, run_name="__main__")
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Import failed. Use scripts/run_gpu.sh to set PYTHONPATH/LD_LIBRARY_PATH."
+        ) from exc
 
 
 if __name__ == "__main__":

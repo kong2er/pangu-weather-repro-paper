@@ -19,6 +19,8 @@ jobs:
         uses: astral-sh/setup-uv@v3
       - name: Sync
         run: uv sync
+      - name: Compile
+        run: uv run python -m compileall pangu_weather_repro tools scripts
       - name: Smoke
         run: uv run python -m pangu_weather_repro.smoke
       - name: Tests

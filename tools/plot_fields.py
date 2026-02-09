@@ -24,6 +24,25 @@ def _latest_rollout_dir(output_root: str) -> str:
     return cands[0]
 
 
+def _preferred_rollout_dir(output_root: str) -> str:
+    if not os.path.isdir(output_root):
+        print(f"OUTPUT_ROOT not found: {output_root}")
+        raise SystemExit(2)
+    prefer = os.path.join(output_root, "day4_rollout_30h")
+    if os.path.isdir(prefer):
+        return prefer
+    cands = []
+    if os.path.isdir(output_root):
+        for name in os.listdir(output_root):
+            if name.startswith("day4_rollout_"):
+                path = os.path.join(output_root, name)
+                if os.path.isdir(path):
+                    cands.append(path)
+    cands.sort()
+    print("no preferred rollout (day4_rollout_30h). Available:", cands or "NONE")
+    raise SystemExit(2)
+
+
 def _load_meta(meta_path: str) -> Dict[str, Any]:
     with open(meta_path, "r") as f:
         return json.load(f)
@@ -63,7 +82,10 @@ def _load_pred_gt_from_npz(npz_path: str, var: str) -> Tuple[np.ndarray, np.ndar
 
 
 def _load_era5_z500(path: str) -> np.ndarray:
-    import netCDF4 as nc
+    try:
+        import netCDF4 as nc
+    except Exception as exc:
+        raise RuntimeError("netCDF4 missing. Run: scripts/install_extras.sh rmse") from exc
     ds = nc.Dataset(path)
     try:
         if "z" not in ds.variables:
@@ -87,9 +109,10 @@ def _select_lead_index(steps: List[int], lead: int | None) -> int:
         return 0
     lead_hours = _sum_steps(steps)
     if lead is None:
-        return 0
+        return len(lead_hours) - 1
     if lead not in lead_hours:
-        raise ValueError(f"lead {lead} not in available leads: {lead_hours}")
+        print(f"lead {lead} not in available leads: {lead_hours}")
+        raise SystemExit(2)
     return lead_hours.index(lead)
 
 
@@ -116,7 +139,7 @@ def main() -> None:
     args = p.parse_args()
 
     output_root = os.environ.get("OUTPUT_ROOT", "/root/autodl-tmp/pangu-weather-repro/outputs")
-    rollout_dir = args.rollout_dir or _latest_rollout_dir(output_root)
+    rollout_dir = args.rollout_dir or _preferred_rollout_dir(output_root)
     meta_path = args.meta or os.path.join(rollout_dir, "eval_z500_meta.json")
     if not os.path.exists(meta_path):
         raise FileNotFoundError(
@@ -139,6 +162,11 @@ def main() -> None:
 
     if gt is None:
         if isinstance(gt_paths, list) and gt_paths:
+            missing = [p for p in gt_paths if not os.path.exists(p)]
+            if missing:
+                print("missing gt_paths:", missing)
+                print("Tip: use --rollout-dir $OUTPUT_ROOT/day4_rollout_30h or download missing ERA5.")
+                raise SystemExit(2)
             gt_list = [_load_era5_z500(p) for p in gt_paths]
             gt = np.stack(gt_list, axis=0)
         else:
