@@ -22,3 +22,9 @@ export PYTHONPATH="${ROOT_DIR}:${PYTHONPATH:-}"
 export PATH="${VENV_DIR}/bin:${PATH}"
 export LD_LIBRARY_PATH="${VENV_SITE}/nvidia/cublas/lib:${VENV_SITE}/nvidia/cudnn/lib:${VENV_SITE}/nvidia/cufft/lib:${VENV_SITE}/nvidia/curand/lib:${VENV_SITE}/nvidia/cusolver/lib:${VENV_SITE}/nvidia/cusparse/lib:${VENV_SITE}/nvidia/cuda_runtime/lib:${VENV_SITE}/nvidia/cuda_nvrtc/lib:${VENV_SITE}/nvidia/nvjitlink/lib:${LD_LIBRARY_PATH:-}"
 echo "GPU env active: ${VENV_DIR}"
+if [[ -f "${VENV_SITE}/nvidia/cublas/lib/libcublasLt.so.12" ]]; then
+  echo "CUDA libs: libcublasLt.so.12 OK"
+else
+  echo "CUDA libs: libcublasLt.so.12 MISSING (run pip install nvidia-cublas-cu12 ...)"
+fi
+python -c "import onnxruntime as ort; print('ORT providers:', ort.get_available_providers())"
