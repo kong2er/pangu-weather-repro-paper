@@ -141,6 +141,14 @@ source scripts/env_gpu.sh
 python tools/day7_metrics.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10 --leads 24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
 ```
 
+## GPU 环境常见提示（可忽略/快速修复）
+如果看到 “pip 依赖冲突提示（missing cartopy/xarray/…）”，这是提醒未装齐可选依赖，不影响当前命令执行。
+
+若出现 “pip logging error：找不到 .venv-gpu/bin/pip”，可用以下单行修复（不影响代码）：
+```bash
+source scripts/env_gpu.sh && python -m ensurepip --upgrade && python -m pip install -U pip && ln -sf .venv-gpu/bin/python .venv-gpu/bin/pip
+```
+
 ## FAQ
 Q: 为什么 smoke 不加载 ONNX 或权重？
 A: 目标是快速校验“预处理 → 输入张量组装 → feed dict”的契约，避免 shape/rank/变量顺序问题，因此仅做 contracts 校验。
