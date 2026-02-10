@@ -24,7 +24,7 @@ class ForecastRunner:
         self,
         models_dir: str,
         use_gpu: bool = True,
-        threads: int = 2,
+        threads: int = 1,
         noarena: bool = False,
         gpu_mem_limit_mb: int | None = None,
     ) -> None:
@@ -59,18 +59,17 @@ class ForecastRunner:
         so = ort.SessionOptions()
         so.intra_op_num_threads = self.threads
         so.inter_op_num_threads = 1
-        if self.noarena:
-            so.enable_cpu_mem_arena = False
-            so.enable_mem_pattern = False
-            so.enable_mem_reuse = False
+        so.enable_cpu_mem_arena = False
+        so.enable_mem_pattern = False
+        so.enable_mem_reuse = False
         return so
 
     def _providers(self) -> List:
         if not self.use_gpu:
             return ["CPUExecutionProvider"]
         cuda_provider_options = {
-            "arena_extend_strategy": os.environ.get("ORT_ARENA_EXTEND_STRATEGY", "kNextPowerOfTwo"),
-            "cudnn_conv_algo_search": os.environ.get("ORT_CUDNN_ALGO_SEARCH", "DEFAULT"),
+            "arena_extend_strategy": os.environ.get("ORT_ARENA_EXTEND_STRATEGY", "kSameAsRequested"),
+            "cudnn_conv_algo_search": os.environ.get("ORT_CUDNN_ALGO_SEARCH", "HEURISTIC"),
             "do_copy_in_default_stream": "1",
             "enable_cuda_graph": "0",
             "tunable_op_enable": "0",

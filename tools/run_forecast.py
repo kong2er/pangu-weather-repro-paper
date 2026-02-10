@@ -34,7 +34,7 @@ def main() -> None:
     p.add_argument("--save-all", action="store_true")
     p.add_argument("--force", action="store_true")
     p.add_argument("--no-gpu", action="store_true")
-    p.add_argument("--threads", type=int, default=2)
+    p.add_argument("--threads", type=int, default=1)
     p.add_argument("--noarena", action="store_true")
     p.add_argument("--gpu-mem-limit-mb", type=int, default=None)
     p.add_argument("--dry-run", action="store_true")
@@ -99,7 +99,9 @@ def main() -> None:
         if "Failed to allocate memory" in msg or "CUDA out of memory" in msg:
             print("[forecast] OOM detected. Try one of:")
             print("  - add --noarena")
+            print("  - add --threads 1")
             print("  - add --gpu-mem-limit-mb 4096 (or smaller)")
+            print("  - use --short-step 6 (avoid 1h model in long runs)")
             print("  - reduce target hours or use --mode short with fewer steps")
         raise
 
