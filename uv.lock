@@ -503,7 +503,6 @@ dependencies = [
     { name = "netcdf4", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "numpy", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "onnx", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "onnxruntime", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pytest", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pyyaml", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "requests", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -513,6 +512,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+cpu = [
+    { name = "onnxruntime", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
 dev = [
     { name = "pytest", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "ruff", marker = "python_full_version < '3.11' and platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -530,7 +532,7 @@ requires-dist = [
     { name = "netcdf4", specifier = ">=1.6" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnx", specifier = ">=1.16" },
-    { name = "onnxruntime", specifier = ">=1.16" },
+    { name = "onnxruntime", marker = "extra == 'cpu'", specifier = ">=1.16,<1.24" },
     { name = "onnxruntime-gpu", marker = "extra == 'gpu'", specifier = ">=1.19" },
     { name = "pytest", specifier = ">=8.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
@@ -541,7 +543,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.66" },
     { name = "xarray", specifier = ">=2024.1" },
 ]
-provides-extras = ["dev", "gpu"]
+provides-extras = ["dev", "cpu", "gpu"]
 
 [[package]]
 name = "pillow"

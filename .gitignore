@@ -42,3 +42,7 @@ configs/local.env
 
 # packaging
 pangu_weather_repro.egg-info/
+
+# local venvs
+.venv-cpu/
+.venv-gpu/
