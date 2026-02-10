@@ -17,6 +17,7 @@ cd /root/projects/pangu-weather-repro-uv
 scripts/create_gpu_venv.sh
 scripts/fix_venv_pip.sh
 scripts/install_gpu_deps.sh
+scripts/01_download_models.sh
 scripts/install_extras.sh rmse
 scripts/install_extras.sh plots
 source scripts/env_gpu.sh
@@ -92,6 +93,7 @@ scripts/run_gpu.sh tools/day7_plot_summary.py --csv artifacts/day7/metrics_summa
 ## 10. 常见错误与修复
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`
 - GPU provider 缺失：`scripts/install_gpu_deps.sh && source scripts/env_gpu.sh`
+- 模型下载失败：`scripts/01_download_models.sh --no-download`
 - netCDF4 缺失：`scripts/install_extras.sh rmse`
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - 缺 rmse.csv / png：`scripts/regression_minimal.sh`

@@ -14,3 +14,8 @@ def test_full_schedule_total():
 def test_long_schedule_total():
     sched = build_schedule(target_hours=96, short_step=1, long_step=24, mode="long")
     assert sum(sched.steps) == 96
+
+
+def test_no_unsupported_step():
+    sched = build_schedule(target_hours=360, short_step=1, long_step=24, mode="full")
+    assert 12 not in sched.steps

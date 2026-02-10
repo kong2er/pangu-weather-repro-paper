@@ -55,6 +55,7 @@ scripts/run_cpu.sh -m pangu_weather_repro.smoke
 scripts/create_gpu_venv.sh
 scripts/fix_venv_pip.sh
 scripts/install_gpu_deps.sh
+scripts/01_download_models.sh
 scripts/install_extras.sh rmse
 scripts/install_extras.sh plots
 source scripts/env_gpu.sh
@@ -99,6 +100,11 @@ scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 
 - CPU 更新：`scripts/create_cpu_venv.sh --update`
 - GPU venv 缺失：`scripts/create_gpu_venv.sh`
 - GPU provider 缺失 / libcublasLt 缺失：`scripts/install_gpu_deps.sh && source scripts/env_gpu.sh`
+- 模型下载失败（网络超时）：
+```bash
+scripts/01_download_models.sh --no-download
+```
+然后把模型手工放到 `MODELS_ROOT`（默认 `/root/autodl-tmp/pangu-weather-repro/models`）。
 - netCDF4 缺失：`scripts/install_extras.sh rmse`
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - cdsapi 缺失：`scripts/install_extras.sh download`

@@ -12,12 +12,28 @@ class Schedule:
     mode: str
 
 
+def _decompose_hours(total: int, steps: List[int]) -> List[int]:
+    if total < 0:
+        raise ValueError("total must be >= 0")
+    steps = sorted([s for s in steps if s > 0], reverse=True)
+    out: List[int] = []
+    remaining = total
+    for s in steps:
+        while remaining >= s:
+            out.append(s)
+            remaining -= s
+    if remaining != 0:
+        raise ValueError(f"cannot decompose {total} with steps {steps}")
+    return out
+
+
 def build_schedule(
     target_hours: int,
     short_until: int = 84,
     short_step: int = 1,
     long_step: int = 24,
     mode: str = "full",
+    available_steps: List[int] | None = None,
 ) -> Schedule:
     if target_hours <= 0:
         raise ValueError("target_hours must be > 0")
@@ -27,12 +43,16 @@ def build_schedule(
         raise ValueError("mode must be one of: short|long|full")
 
     steps: List[int] = []
+    avail = available_steps or [24, 6, 3, 1]
     if mode in {"short", "full"}:
         short_target = min(target_hours, short_until)
-        steps.extend([short_step] * (short_target // short_step))
-        remainder = short_target % short_step
-        if remainder:
-            steps.append(remainder)
+        if short_step in avail:
+            steps.extend([short_step] * (short_target // short_step))
+            remainder = short_target % short_step
+            if remainder:
+                steps.extend(_decompose_hours(remainder, avail))
+        else:
+            steps.extend(_decompose_hours(short_target, avail))
 
     if mode in {"long", "full"} and target_hours > short_until:
         start = short_until if mode == "full" else 0
@@ -40,7 +60,7 @@ def build_schedule(
         steps.extend([long_step] * (remaining // long_step))
         rem = remaining % long_step
         if rem:
-            steps.append(rem)
+            steps.extend(_decompose_hours(rem, avail))
 
     total = sum(steps)
     if total != target_hours:
