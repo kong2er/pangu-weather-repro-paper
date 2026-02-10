@@ -104,7 +104,7 @@ scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 
 ```bash
 scripts/01_download_models.sh --no-download
 ```
-或使用 Google Drive 直链（需要 `gdown`，由 `scripts/install_extras.sh download` 安装）：  
+或使用 Google Drive 直链（默认无需 gdown，脚本内置 curl/wget/requests 回退）：  
 ```bash
 scripts/01_download_models.sh --source gdrive
 ```
