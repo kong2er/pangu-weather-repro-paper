@@ -159,6 +159,7 @@ def main() -> None:
     hour = _pick_key(meta, ["hour", "HOUR"]) or ""
 
     pred, gt = _load_pred_gt_from_npz(pred_path, args.var)
+    gt_available = True
 
     if gt is None:
         if isinstance(gt_paths, list) and gt_paths:
@@ -166,13 +167,14 @@ def main() -> None:
             if missing:
                 print("missing gt_paths:", missing)
                 print("Tip: use --rollout-dir $OUTPUT_ROOT/day4_rollout_30h or download missing ERA5.")
-                raise SystemExit(2)
-            gt_list = [_load_era5_z500(p) for p in gt_paths]
-            gt = np.stack(gt_list, axis=0)
+                gt_available = False
+            else:
+                gt_list = [_load_era5_z500(p) for p in gt_paths]
+                gt = np.stack(gt_list, axis=0)
         else:
-            raise FileNotFoundError("gt not found in npz or meta. Run Day5 or provide ERA5.")
+            gt_available = False
 
-    if pred.shape != gt.shape:
+    if gt_available and pred.shape != gt.shape:
         raise ValueError(f"shape mismatch pred={pred.shape} gt={gt.shape}")
 
     lead_idx = _select_lead_index(steps, args.lead)
@@ -181,16 +183,17 @@ def main() -> None:
 
     if pred.ndim == 3:
         pred2 = pred[lead_idx]
-        gt2 = gt[lead_idx]
+        gt2 = gt[lead_idx] if gt_available else None
     else:
         pred2 = pred
-        gt2 = gt
+        gt2 = gt if gt_available else None
 
-    err = pred2 - gt2
-
-    vmin = args.vmin if args.vmin is not None else float(np.nanmin([gt2.min(), pred2.min()]))
-    vmax = args.vmax if args.vmax is not None else float(np.nanmax([gt2.max(), pred2.max()]))
-    err_max = args.err_max if args.err_max is not None else float(np.nanmax(np.abs(err)))
+    vmin = args.vmin if args.vmin is not None else float(np.nanmin(pred2))
+    vmax = args.vmax if args.vmax is not None else float(np.nanmax(pred2))
+    err_max = None
+    if gt_available and gt2 is not None:
+        err = pred2 - gt2
+        err_max = args.err_max if args.err_max is not None else float(np.nanmax(np.abs(err)))
 
     os.makedirs(args.outdir, exist_ok=True)
     date_hour = f"{date}{hour}" if date and hour else "unknown"
@@ -198,26 +201,35 @@ def main() -> None:
     out_path = os.path.join(args.outdir, f"field_{args.var}_{date_hour}_{lead_tag}.png")
 
     print("[plot_fields] pred:", pred_path)
-    print("[plot_fields] gt:", gt_paths if gt_paths else "(from npz)")
+    print("[plot_fields] gt:", gt_paths if gt_paths else "(from npz)" if gt_available else "(missing)")
     print("[plot_fields] shape:", pred.shape, "dtype:", pred.dtype)
     print("[plot_fields] units:", units)
     print("[plot_fields] lead:", lead_val, "index:", lead_idx)
     print("[plot_fields] out:", out_path)
 
-    fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.2), dpi=160)
+    if gt_available and gt2 is not None:
+        fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.2), dpi=160)
+    else:
+        fig, axes = plt.subplots(1, 1, figsize=(5.0, 4.2), dpi=160)
+        axes = [axes]
     title_time = _format_date_hour(date, hour)
 
-    im0 = axes[0].imshow(gt2, vmin=vmin, vmax=vmax, cmap="viridis")
-    axes[0].set_title(f"GT {args.var} {title_time} {lead_tag}")
-    plt.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04, label=units)
+    if gt_available and gt2 is not None:
+        im0 = axes[0].imshow(gt2, vmin=vmin, vmax=vmax, cmap="viridis")
+        axes[0].set_title(f"GT {args.var} {title_time} {lead_tag}")
+        plt.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04, label=units)
 
-    im1 = axes[1].imshow(pred2, vmin=vmin, vmax=vmax, cmap="viridis")
-    axes[1].set_title(f"Pred {args.var} {title_time} {lead_tag}")
-    plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04, label=units)
+        im1 = axes[1].imshow(pred2, vmin=vmin, vmax=vmax, cmap="viridis")
+        axes[1].set_title(f"Pred {args.var} {title_time} {lead_tag}")
+        plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04, label=units)
 
-    im2 = axes[2].imshow(err, vmin=-err_max, vmax=err_max, cmap="RdBu_r")
-    axes[2].set_title(f"Error (Pred-GT) {title_time} {lead_tag}")
-    plt.colorbar(im2, ax=axes[2], fraction=0.046, pad=0.04, label=units)
+        im2 = axes[2].imshow(err, vmin=-err_max, vmax=err_max, cmap="RdBu_r")
+        axes[2].set_title(f"Error (Pred-GT) {title_time} {lead_tag}")
+        plt.colorbar(im2, ax=axes[2], fraction=0.046, pad=0.04, label=units)
+    else:
+        im1 = axes[0].imshow(pred2, vmin=vmin, vmax=vmax, cmap="viridis")
+        axes[0].set_title(f"Pred {args.var} {title_time} {lead_tag}")
+        plt.colorbar(im1, ax=axes[0], fraction=0.046, pad=0.04, label=units)
 
     for ax in axes:
         ax.set_xticks([])

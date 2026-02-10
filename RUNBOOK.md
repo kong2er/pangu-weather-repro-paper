@@ -8,7 +8,7 @@ CPU：
 cd /root/projects/pangu-weather-repro-uv
 scripts/create_cpu_venv.sh
 source scripts/env_cpu.sh
-python -m pangu_weather_repro.smoke
+scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
 
 GPU：
@@ -36,12 +36,12 @@ scripts/gen_report.sh
 ```bash
 source configs/default.env
 bash scripts/01_download_models.sh
-python scripts/03_download_era5_single.py --date 20230709 --hour 00
-python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
-python scripts/03_download_era5_single.py --date 20230709 --hour 06
-python scripts/03_download_era5_pressure.py --date 20230709 --hour 06
-python scripts/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
-python scripts/05_validate_inputs.py
+scripts/run_gpu.sh scripts/03_download_era5_single.py --date 20230709 --hour 00
+scripts/run_gpu.sh scripts/03_download_era5_pressure.py --date 20230709 --hour 00
+scripts/run_gpu.sh scripts/03_download_era5_single.py --date 20230709 --hour 06
+scripts/run_gpu.sh scripts/03_download_era5_pressure.py --date 20230709 --hour 06
+scripts/run_gpu.sh scripts/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
+scripts/run_gpu.sh scripts/05_validate_inputs.py
 ```
 
 ## 3. Day4 rollout（30h）
@@ -62,16 +62,36 @@ source configs/default.env
 scripts/run_day6_plots.sh
 ```
 
-## 6. Day7 metrics（可选）
+## 6. 对齐推理能力（1/3/6/24 & 1–84 & 84–360）
+```bash
+source configs/default.env
+scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 24
+scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 84
+scripts/run_gpu.sh tools/run_forecast.py --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
+```
+
+## 7. 论文级图输出
+```bash
+source configs/default.env
+scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --var z500
+```
+
+## 8. Region 扩展（示例裁剪）
+```bash
+scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123
+```
+
+## 9. Day7 metrics（可选）
 ```bash
 source configs/default.env
 scripts/run_gpu.sh tools/day7_metrics.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10 --leads 24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
 scripts/run_gpu.sh tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
 ```
 
-## 7. 常见错误与修复
+## 10. 常见错误与修复
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`
 - GPU provider 缺失：`scripts/install_gpu_deps.sh && source scripts/env_gpu.sh`
 - netCDF4 缺失：`scripts/install_extras.sh rmse`
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - 缺 rmse.csv / png：`scripts/regression_minimal.sh`
+ - 需要覆盖产物：对应脚本加 `--force`

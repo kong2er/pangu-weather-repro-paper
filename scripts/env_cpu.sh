@@ -17,6 +17,17 @@ if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
 fi
 
 export UV_VENV="${VENV_DIR}"
-export PYTHONPATH="${ROOT_DIR}:${PYTHONPATH:-}"
+export VIRTUAL_ENV="${VENV_DIR}"
 export PATH="${VENV_DIR}/bin:${PATH}"
+if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
+  NEW_LD=""
+  IFS=":" read -r -a LD_PARTS <<< "${LD_LIBRARY_PATH}"
+  for p in "${LD_PARTS[@]}"; do
+    if [[ "${p}" == *"/.venv-gpu/"* || "${p}" == *"/nvidia/"* ]]; then
+      continue
+    fi
+    NEW_LD="${NEW_LD}:${p}"
+  done
+  export LD_LIBRARY_PATH="${NEW_LD#:}"
+fi
 echo "CPU env active: ${VENV_DIR}"

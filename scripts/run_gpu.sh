@@ -3,7 +3,9 @@ set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
   echo "Usage: scripts/run_gpu.sh <python-args>"
-  echo "Example: scripts/run_gpu.sh tools/run_smoke_gpu_noarena.py --step 24"
+  echo "Examples:"
+  echo "  scripts/run_gpu.sh tools/run_smoke_gpu_noarena.py --step 24"
+  echo "  scripts/run_gpu.sh -c \"import onnxruntime as ort; print(ort.get_available_providers())\""
   echo "Purpose: run commands with .venv-gpu + CUDA libs + PYTHONPATH set."
   exit 0
 fi
@@ -13,7 +15,7 @@ VENV_DIR="${ROOT_DIR}/.venv-gpu"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "GPU venv not found: ${VENV_DIR}/bin/python"
-  echo "Run: make env-gpu"
+  echo "Run: scripts/create_gpu_venv.sh"
   exit 1
 fi
 

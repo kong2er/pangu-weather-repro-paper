@@ -20,8 +20,17 @@ fi
 echo "== CPU smoke =="
 bash "$ROOT_DIR/scripts/run_day8_cpu_smoke.sh"
 
-echo "== GPU regression =="
-bash "$ROOT_DIR/scripts/regression_minimal.sh"
+echo "== Load GPU env =="
+source "$ROOT_DIR/configs/default.env"
+
+echo "== Day3 smoke =="
+bash "$ROOT_DIR/scripts/run_day3_smoke_gpu.sh"
+
+echo "== Day5 rmse =="
+bash "$ROOT_DIR/scripts/run_day5_rmse.sh"
+
+echo "== Day6 plots =="
+bash "$ROOT_DIR/scripts/run_day6_plots.sh"
 
 # artifacts check
 [[ -f "$ROOT_DIR/artifacts/day5/rmse.csv" ]] || fail "missing artifacts/day5/rmse.csv; run: scripts/run_day5_rmse.sh or scripts/regression_minimal.sh" 2

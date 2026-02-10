@@ -12,7 +12,7 @@ VENV_DIR="${ROOT_DIR}/.venv-gpu"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "GPU venv not found: ${VENV_DIR}/bin/python"
-  echo "Run: make env-gpu"
+  echo "Run: scripts/create_gpu_venv.sh"
   exit 1
 fi
 

@@ -2,12 +2,14 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/install_extras.sh {rmse|plots|download|all}"
+  echo "Usage: scripts/install_extras.sh {rmse|plots|download|all} [--force]"
   echo "Purpose: install optional deps into .venv-gpu."
+  echo "Default: if deps already present, do nothing."
   exit 0
 fi
 
 MODE="${1:-}"
+FORCE="${2:-}"
 if [[ -z "${MODE}" ]]; then
   echo "Missing mode. Use --help"
   exit 1
@@ -18,7 +20,7 @@ VENV_DIR="${ROOT_DIR}/.venv-gpu"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "GPU venv not found: ${VENV_DIR}/bin/python"
-  echo "Run: make env-gpu"
+  echo "Run: scripts/create_gpu_venv.sh"
   exit 1
 fi
 
@@ -26,15 +28,47 @@ PIP="${VENV_DIR}/bin/python -m pip"
 
 case "${MODE}" in
   rmse)
+    if [[ "${FORCE}" != "--force" ]]; then
+      if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
+import netCDF4, cftime
+PY
+        echo "extras already present (rmse). Use --force to reinstall."
+        exit 0
+      fi
+    fi
     ${PIP} install -U netCDF4 cftime
     ;;
   plots)
+    if [[ "${FORCE}" != "--force" ]]; then
+      if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
+import matplotlib, cartopy
+PY
+        echo "extras already present (plots). Use --force to reinstall."
+        exit 0
+      fi
+    fi
     ${PIP} install -U matplotlib cartopy
     ;;
   download)
+    if [[ "${FORCE}" != "--force" ]]; then
+      if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
+import cdsapi, requests, tqdm, yaml
+PY
+        echo "extras already present (download). Use --force to reinstall."
+        exit 0
+      fi
+    fi
     ${PIP} install -U cdsapi requests tqdm pyyaml
     ;;
   all)
+    if [[ "${FORCE}" != "--force" ]]; then
+      if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
+import netCDF4, cftime, matplotlib, cartopy, cdsapi, requests, tqdm, yaml
+PY
+        echo "extras already present (all). Use --force to reinstall."
+        exit 0
+      fi
+    fi
     ${PIP} install -U netCDF4 cftime matplotlib cartopy cdsapi requests tqdm pyyaml
     ;;
   *)

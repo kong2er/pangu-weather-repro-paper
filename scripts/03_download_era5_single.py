@@ -1,5 +1,10 @@
 import argparse, os, time
-import cdsapi
+try:
+    import cdsapi
+except Exception as exc:
+    raise RuntimeError(
+        "cdsapi is required. Run: scripts/install_extras.sh download"
+    ) from exc
 
 def main():
     p = argparse.ArgumentParser()

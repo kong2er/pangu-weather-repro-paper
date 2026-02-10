@@ -138,7 +138,7 @@ def _run_step(
         import onnxruntime as ort
     except Exception as exc:
         raise RuntimeError(
-            "onnxruntime is required for rollout. Install onnxruntime or run in a prepared env."
+            "onnxruntime is required for rollout. Run: scripts/install_gpu_deps.sh"
         ) from exc
     so = _session_options(threads, noarena)
     providers = _providers(use_gpu, gpu_mem_limit_mb)

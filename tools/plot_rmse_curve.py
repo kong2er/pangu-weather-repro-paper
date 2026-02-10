@@ -37,7 +37,7 @@ def main() -> None:
     args = p.parse_args()
 
     if not os.path.exists(args.csv):
-        print(f"rmse.csv not found: {args.csv}. Run Day5 eval first.")
+        print(f"rmse.csv not found: {args.csv}. Run: scripts/run_day5_rmse.sh")
         raise SystemExit(2)
 
     rows = _read_csv(args.csv)

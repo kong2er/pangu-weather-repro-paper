@@ -8,7 +8,7 @@ CPU（Day8/CI）：
 cd /root/projects/pangu-weather-repro-uv
 scripts/create_cpu_venv.sh
 source scripts/env_cpu.sh
-python -m pangu_weather_repro.smoke
+scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
 
 GPU（Day3→Day6 最小链路）：
@@ -29,6 +29,8 @@ scripts/regression_minimal.sh
 bash scripts/final_verify.sh
 ```
 
+默认行为：不覆盖已有产物。需要覆盖时加 `--force`。
+
 ## 环境与切换
 CPU 环境：`.venv-cpu`（不加载 CUDA）
 GPU 环境：`.venv-gpu`（加载 CUDA）
@@ -45,7 +47,7 @@ source scripts/env_gpu.sh
 ```bash
 scripts/create_cpu_venv.sh
 source scripts/env_cpu.sh
-python -m pangu_weather_repro.smoke
+scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
 
 ## Quickstart (GPU / Day3–Day6 最小链路)
@@ -57,7 +59,9 @@ scripts/install_extras.sh rmse
 scripts/install_extras.sh plots
 source scripts/env_gpu.sh
 source configs/default.env
-scripts/regression_minimal.sh
+scripts/run_day3_smoke_gpu.sh
+scripts/run_day5_rmse.sh
+scripts/run_day6_plots.sh
 ```
 
 ## 最小链路脚本
@@ -66,6 +70,27 @@ scripts/regression_minimal.sh
 - Day6：`scripts/run_day6_plots.sh`
 - 回归：`scripts/regression_minimal.sh`
 - 报告：`scripts/gen_report.sh`
+
+## 对齐能力（zjobsdev/pangu）
+- 1/3/6/24h 模型推理：`tools/run_forecast.py --short-step 1|3|6|24 --mode short --target-hours 24`
+- 1–84h 逐小时：`tools/run_forecast.py --mode short --short-step 1 --target-hours 84`
+- 84–360h 迭代：`tools/run_forecast.py --mode full --short-step 1 --long-step 24 --target-hours 360`
+- 仅计划不跑：`tools/run_forecast.py --dry-run --mode full --target-hours 360`
+
+示例（GPU 环境）：
+```bash
+scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 24
+```
+
+## 论文级图输出
+```bash
+scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --var z500
+```
+
+## Region 扩展（可插拔数据适配层）
+```bash
+scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123
+```
 
 ## Troubleshooting（常见错误 → 命令）
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`
@@ -77,6 +102,7 @@ scripts/regression_minimal.sh
 - cdsapi 缺失：`scripts/install_extras.sh download`
 - rmse.csv 或 day6 png 缺失：`scripts/regression_minimal.sh`
 - pip logging error：`scripts/fix_venv_pip.sh`
+- 需要覆盖产物：对应脚本加 `--force`
 
 ## 产物清单（最小链路）
 - `artifacts/day5/rmse.csv`
