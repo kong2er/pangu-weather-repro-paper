@@ -52,24 +52,24 @@ PY
   download)
     if [[ "${FORCE}" != "--force" ]]; then
       if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
-import cdsapi, requests, tqdm, yaml
+import cdsapi, requests, tqdm, yaml, gdown
 PY
         echo "extras already present (download). Use --force to reinstall."
         exit 0
       fi
     fi
-    ${PIP} install -U cdsapi requests tqdm pyyaml
+    ${PIP} install -U cdsapi requests tqdm pyyaml gdown
     ;;
   all)
     if [[ "${FORCE}" != "--force" ]]; then
       if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
-import netCDF4, cftime, matplotlib, cartopy, cdsapi, requests, tqdm, yaml
+import netCDF4, cftime, matplotlib, cartopy, cdsapi, requests, tqdm, yaml, gdown
 PY
         echo "extras already present (all). Use --force to reinstall."
         exit 0
       fi
     fi
-    ${PIP} install -U netCDF4 cftime matplotlib cartopy cdsapi requests tqdm pyyaml
+    ${PIP} install -U netCDF4 cftime matplotlib cartopy cdsapi requests tqdm pyyaml gdown
     ;;
   *)
     echo "Unknown mode: ${MODE}"

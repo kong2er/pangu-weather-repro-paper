@@ -91,7 +91,8 @@ if [[ "${SOURCE}" == "gdrive" ]]; then
     gdown --fuzzy -O pangu_weather_6.onnx "${GDRIVE_6}"
     gdown --fuzzy -O pangu_weather_24.onnx "${GDRIVE_24}"
   else
-    echo "gdown not found. Install via: scripts/run_cpu.sh -m pip install gdown"
+    echo "gdown not found."
+    echo "Install via: scripts/install_extras.sh download"
     echo "Or run with --no-download and place files manually."
     exit 1
   fi

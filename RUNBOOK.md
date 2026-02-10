@@ -94,7 +94,7 @@ scripts/run_gpu.sh tools/day7_plot_summary.py --csv artifacts/day7/metrics_summa
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`
 - GPU provider 缺失：`scripts/install_gpu_deps.sh && source scripts/env_gpu.sh`
 - 模型下载失败：`scripts/01_download_models.sh --no-download`
-  或：`scripts/01_download_models.sh --source gdrive`（需要 `gdown`）
+  或：`scripts/01_download_models.sh --source gdrive`（需要 `gdown`，用 `scripts/install_extras.sh download` 安装）
   手动放置模型到 `MODELS_ROOT`（默认 `/root/autodl-tmp/pangu-weather-repro/models`）：
   `pangu_weather_1.onnx` / `pangu_weather_3.onnx` / `pangu_weather_6.onnx` / `pangu_weather_24.onnx`
   参考入口（在代码块内，便于复制）：
