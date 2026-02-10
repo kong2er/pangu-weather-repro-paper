@@ -104,6 +104,10 @@ scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 
 ```bash
 scripts/01_download_models.sh --no-download
 ```
+或使用 Google Drive 直链（需要 `gdown`）：  
+```bash
+scripts/01_download_models.sh --source gdrive
+```
 然后把模型手工放到 `MODELS_ROOT`（默认 `/root/autodl-tmp/pangu-weather-repro/models`）。
 - 你可以从网盘手动下载以下四个模型并放到上述目录（文件名必须一致）：  
   `pangu_weather_1.onnx` / `pangu_weather_3.onnx` / `pangu_weather_6.onnx` / `pangu_weather_24.onnx`  
