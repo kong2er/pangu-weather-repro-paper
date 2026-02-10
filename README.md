@@ -85,5 +85,8 @@ scripts/regression_minimal.sh
 - `figures/day6/rmse_z500_2023070900.png`
 - `artifacts/day7/REPORT.md`
 
+## Release
+当前收官版本：`v1.0`。详见 `RELEASE_NOTES.md`。
+
 ## Full Run（可选，Day1–Day8）
 完整流程与排错细节见 `RUNBOOK.md`。
