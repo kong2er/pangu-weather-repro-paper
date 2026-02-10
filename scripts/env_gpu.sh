@@ -12,7 +12,7 @@ VENV_DIR="${ROOT_DIR}/.venv-gpu"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "GPU venv not found: ${VENV_DIR}/bin/python"
-  echo "Run: make env-gpu"
+  echo "Run: scripts/create_gpu_venv.sh"
   return 1 2>/dev/null || exit 1
 fi
 
@@ -25,6 +25,6 @@ echo "GPU env active: ${VENV_DIR}"
 if [[ -f "${VENV_SITE}/nvidia/cublas/lib/libcublasLt.so.12" ]]; then
   echo "CUDA libs: libcublasLt.so.12 OK"
 else
-  echo "CUDA libs: libcublasLt.so.12 MISSING (run pip install nvidia-cublas-cu12 ...)"
+  echo "CUDA libs: libcublasLt.so.12 MISSING (run scripts/install_gpu_deps.sh)"
 fi
 python -c "import onnxruntime as ort; print('ORT providers:', ort.get_available_providers())"
