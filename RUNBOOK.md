@@ -69,6 +69,7 @@ scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-ho
 scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 84
 scripts/run_gpu.sh tools/run_forecast.py --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
 ```
+如遇显存不足（OOM），可加：`--noarena` 或 `--gpu-mem-limit-mb 4096`。
 
 ## 7. 论文级图输出
 ```bash

@@ -35,6 +35,7 @@ def main() -> None:
     p.add_argument("--no-gpu", action="store_true")
     p.add_argument("--threads", type=int, default=2)
     p.add_argument("--noarena", action="store_true")
+    p.add_argument("--gpu-mem-limit-mb", type=int, default=None)
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
@@ -77,18 +78,27 @@ def main() -> None:
         use_gpu=not args.no_gpu,
         threads=args.threads,
         noarena=args.noarena,
+        gpu_mem_limit_mb=args.gpu_mem_limit_mb,
     )
 
-    result = runner.run_schedule(
-        schedule=schedule,
-        processed_dir=args.processed_dir,
-        out_dir=out_dir,
-        save_hours=_parse_hours(args.save_hours),
-        force=args.force,
-        save_all=args.save_all,
-    )
-
-    print("[forecast] report:", result.report_path)
+    try:
+        result = runner.run_schedule(
+            schedule=schedule,
+            processed_dir=args.processed_dir,
+            out_dir=out_dir,
+            save_hours=_parse_hours(args.save_hours),
+            force=args.force,
+            save_all=args.save_all,
+        )
+        print("[forecast] report:", result.report_path)
+    except Exception as exc:
+        msg = str(exc)
+        if "Failed to allocate memory" in msg or "CUDA out of memory" in msg:
+            print("[forecast] OOM detected. Try one of:")
+            print("  - add --noarena")
+            print("  - add --gpu-mem-limit-mb 4096 (or smaller)")
+            print("  - reduce target hours or use --mode short with fewer steps")
+        raise
 
 
 if __name__ == "__main__":

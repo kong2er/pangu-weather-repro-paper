@@ -81,6 +81,8 @@ scripts/run_day6_plots.sh
 ```bash
 scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 24
 ```
+如遇显存不足（OOM），可加：
+`--noarena` 或 `--gpu-mem-limit-mb 4096`。
 
 ## 论文级图输出
 ```bash
