@@ -19,3 +19,8 @@ def test_long_schedule_total():
 def test_no_unsupported_step():
     sched = build_schedule(target_hours=360, short_step=1, long_step=24, mode="full")
     assert 12 not in sched.steps
+
+
+def test_pangu_ref_long_mode():
+    sched = build_schedule(target_hours=276, short_step=1, long_step=24, mode="long", strategy="pangu_ref")
+    assert all(s in (24, 6, 3) for s in sched.steps)

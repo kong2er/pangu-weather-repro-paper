@@ -74,13 +74,14 @@ scripts/run_day6_plots.sh
 
 ## 对齐能力（zjobsdev/pangu）
 - 1/3/6/24h 模型推理：`tools/run_forecast.py --short-step 1|3|6|24 --mode short --target-hours 24`
-- 1–84h 逐小时：`tools/run_forecast.py --mode short --short-step 1 --target-hours 84`
-- 84–360h 迭代：`tools/run_forecast.py --mode full --short-step 1 --long-step 24 --target-hours 360`
-- 仅计划不跑：`tools/run_forecast.py --dry-run --mode full --target-hours 360`
+- 1–84h 逐小时：`tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 84`
+- 84–360h 迭代：`tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360`
+- 仅计划不跑：`tools/run_forecast.py --strategy pangu_ref --dry-run --mode full --target-hours 360`
 
 示例（GPU 环境）：
 ```bash
 scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 24
+scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
 ```
 如遇显存不足（OOM），可加：
 `--noarena` 或 `--gpu-mem-limit-mb 4096`。

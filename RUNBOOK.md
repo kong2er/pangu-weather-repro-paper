@@ -66,9 +66,9 @@ scripts/run_day6_plots.sh
 ## 6. 对齐推理能力（1/3/6/24 & 1–84 & 84–360）
 ```bash
 source configs/default.env
-scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 24
-scripts/run_gpu.sh tools/run_forecast.py --mode short --short-step 1 --target-hours 84
-scripts/run_gpu.sh tools/run_forecast.py --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
+scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 24
+scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 84
+scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
 ```
 如遇显存不足（OOM），可加：`--noarena` 或 `--gpu-mem-limit-mb 4096`。
 

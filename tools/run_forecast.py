@@ -27,6 +27,7 @@ def main() -> None:
     p.add_argument("--out-dir", default="")
     p.add_argument("--target-hours", type=int, default=30)
     p.add_argument("--mode", choices=["short", "long", "full"], default="short")
+    p.add_argument("--strategy", choices=["default", "pangu_ref"], default="default")
     p.add_argument("--short-step", type=int, default=1)
     p.add_argument("--long-step", type=int, default=24)
     p.add_argument("--save-hours", default="1,3,6,24,84,120,168,240,360")
@@ -48,11 +49,13 @@ def main() -> None:
         short_step=args.short_step,
         long_step=args.long_step,
         mode=args.mode,
+        strategy=args.strategy,
     )
 
     print("[forecast] mode:", args.mode)
     print("[forecast] target_hours:", args.target_hours)
     print("[forecast] schedule steps:", schedule.steps)
+    print("[forecast] strategy:", args.strategy)
     print("[forecast] models_dir:", args.models_dir)
     print("[forecast] processed_dir:", args.processed_dir)
     print("[forecast] out_dir:", out_dir)

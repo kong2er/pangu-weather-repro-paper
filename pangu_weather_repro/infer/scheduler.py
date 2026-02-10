@@ -34,6 +34,7 @@ def build_schedule(
     long_step: int = 24,
     mode: str = "full",
     available_steps: List[int] | None = None,
+    strategy: str = "default",
 ) -> Schedule:
     if target_hours <= 0:
         raise ValueError("target_hours must be > 0")
@@ -44,6 +45,8 @@ def build_schedule(
 
     steps: List[int] = []
     avail = available_steps or [24, 6, 3, 1]
+    if strategy not in {"default", "pangu_ref"}:
+        raise ValueError("strategy must be one of: default|pangu_ref")
     if mode in {"short", "full"}:
         short_target = min(target_hours, short_until)
         if short_step in avail:
@@ -61,6 +64,18 @@ def build_schedule(
         rem = remaining % long_step
         if rem:
             steps.extend(_decompose_hours(rem, avail))
+
+    if strategy == "pangu_ref":
+        # Enforce: 1h only up to 84h; after 84h, use 24/6/3 only.
+        steps = []
+        if mode == "short":
+            steps.extend(_decompose_hours(min(target_hours, short_until), [24, 6, 3, 1]))
+        elif mode == "long":
+            steps.extend(_decompose_hours(target_hours, [24, 6, 3]))
+        else:
+            steps.extend(_decompose_hours(min(target_hours, short_until), [24, 6, 3, 1]))
+            if target_hours > short_until:
+                steps.extend(_decompose_hours(target_hours - short_until, [24, 6, 3]))
 
     total = sum(steps)
     if total != target_hours:
