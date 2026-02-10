@@ -46,3 +46,6 @@ pangu_weather_repro.egg-info/
 # local venvs
 .venv-cpu/
 .venv-gpu/
+
+# packaged run artifacts
+artifacts/day7/run_artifacts_*.tgz
