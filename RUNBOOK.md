@@ -101,6 +101,13 @@ scripts/run_gpu.sh tools/day7_plot_summary.py --csv artifacts/day7/metrics_summa
 https://github.com/HaxyMoly/Pangu-Weather-ReadyToGo
 https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-inference-using-the-trained-models
 ```
+  直接下载（Google Drive，按 1/3/6/24 顺序）：
+```text
+1h:  https://drive.google.com/file/d/1fg5jkiN_5dHzKb-5H9Aw4MOmfILmeY-S/view?usp=sharing
+3h:  https://drive.google.com/file/d/1EdoLlAXqE9iZLt9Ej9i-JW9LTJ9Jtewt/view?usp=sharing
+6h:  https://drive.google.com/file/d/1a4XTktkZa5GCtjQxDJb_fNaqTAUiEJu4/view?usp=sharing
+24h: https://drive.google.com/file/d/1lweQlxcn9fG0zKNW8ne1Khr9ehRTI6HP/view?usp=sharing
+```
 - netCDF4 缺失：`scripts/install_extras.sh rmse`
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - 缺 rmse.csv / png：`scripts/regression_minimal.sh`
