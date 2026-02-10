@@ -37,6 +37,7 @@ def main() -> None:
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--noarena", action="store_true")
     p.add_argument("--gpu-mem-limit-mb", type=int, default=None)
+    p.add_argument("--no-cache-sessions", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
@@ -129,6 +130,7 @@ def main() -> None:
         threads=args.threads,
         noarena=args.noarena,
         gpu_mem_limit_mb=args.gpu_mem_limit_mb,
+        cache_sessions=not args.no_cache_sessions,
     )
 
     try:
@@ -172,6 +174,7 @@ def main() -> None:
             print("  - add --threads 1")
             print("  - add --gpu-mem-limit-mb 4096 (or smaller)")
             print("  - use --short-step 6 (avoid 1h model in long runs)")
+            print("  - add --no-cache-sessions (avoid GPU mem accumulation)")
             print("  - use --mode split (run 84h then 276h)")
             print("  - reduce target hours or use --mode short with fewer steps")
         raise

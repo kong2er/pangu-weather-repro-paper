@@ -53,6 +53,7 @@ ARGS=(
   "--target-hours" "360"
   "--noarena"
   "--threads" "1"
+  "--no-cache-sessions"
   "--out-dir" "${OUT_DIR}"
 )
 

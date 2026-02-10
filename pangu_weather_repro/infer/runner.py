@@ -27,12 +27,14 @@ class ForecastRunner:
         threads: int = 1,
         noarena: bool = False,
         gpu_mem_limit_mb: int | None = None,
+        cache_sessions: bool = True,
     ) -> None:
         self.models_dir = models_dir
         self.use_gpu = use_gpu
         self.threads = threads
         self.noarena = noarena
         self.gpu_mem_limit_mb = gpu_mem_limit_mb
+        self.cache_sessions = cache_sessions
         self._sessions: Dict[int, "ort.InferenceSession"] = {}
 
     def _ensure_ort(self):
@@ -80,13 +82,14 @@ class ForecastRunner:
 
     def _get_session(self, step: int):
         self._ensure_ort()
-        if step in self._sessions:
+        if self.cache_sessions and step in self._sessions:
             return self._sessions[step]
         import onnxruntime as ort
 
         path = self._resolve_model_path(step)
         sess = ort.InferenceSession(path, sess_options=self._session_options(), providers=self._providers())
-        self._sessions[step] = sess
+        if self.cache_sessions:
+            self._sessions[step] = sess
         return sess
 
     @staticmethod
@@ -179,6 +182,13 @@ class ForecastRunner:
             if save_all or hours in save_hours_set:
                 np.save(os.path.join(out_dir, f"rollout_pressure_{hours}h.npy"), np.asarray(pressure))
                 np.save(os.path.join(out_dir, f"rollout_surface_{hours}h.npy"), np.asarray(surface))
+
+            if not self.cache_sessions:
+                # release session to avoid GPU memory accumulation
+                try:
+                    del sess
+                except Exception:
+                    pass
 
         report = {
             "total_hours": hours,
