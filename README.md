@@ -105,6 +105,13 @@ scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 
 scripts/01_download_models.sh --no-download
 ```
 然后把模型手工放到 `MODELS_ROOT`（默认 `/root/autodl-tmp/pangu-weather-repro/models`）。
+- 你可以从网盘手动下载以下四个模型并放到上述目录（文件名必须一致）：  
+  `pangu_weather_1.onnx` / `pangu_weather_3.onnx` / `pangu_weather_6.onnx` / `pangu_weather_24.onnx`  
+  参考入口（在代码块内，便于复制）：  
+```text
+https://github.com/HaxyMoly/Pangu-Weather-ReadyToGo
+https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-inference-using-the-trained-models
+```
 - netCDF4 缺失：`scripts/install_extras.sh rmse`
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - cdsapi 缺失：`scripts/install_extras.sh download`

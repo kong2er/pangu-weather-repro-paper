@@ -94,6 +94,13 @@ scripts/run_gpu.sh tools/day7_plot_summary.py --csv artifacts/day7/metrics_summa
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`
 - GPU provider 缺失：`scripts/install_gpu_deps.sh && source scripts/env_gpu.sh`
 - 模型下载失败：`scripts/01_download_models.sh --no-download`
+  手动放置模型到 `MODELS_ROOT`（默认 `/root/autodl-tmp/pangu-weather-repro/models`）：
+  `pangu_weather_1.onnx` / `pangu_weather_3.onnx` / `pangu_weather_6.onnx` / `pangu_weather_24.onnx`
+  参考入口（在代码块内，便于复制）：
+```text
+https://github.com/HaxyMoly/Pangu-Weather-ReadyToGo
+https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-inference-using-the-trained-models
+```
 - netCDF4 缺失：`scripts/install_extras.sh rmse`
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - 缺 rmse.csv / png：`scripts/regression_minimal.sh`
