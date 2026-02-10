@@ -12,7 +12,7 @@ VENV_DIR="${ROOT_DIR}/.venv-cpu"
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "CPU venv not found: ${VENV_DIR}/bin/python"
-  echo "Run: make env-cpu"
+  echo "Run: scripts/create_cpu_venv.sh"
   return 1 2>/dev/null || exit 1
 fi
 
