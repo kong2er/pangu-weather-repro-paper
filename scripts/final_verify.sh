@@ -30,7 +30,16 @@ ls -1 "$ROOT_DIR/figures/day6"/*.png >/dev/null 2>&1 || fail "missing figures/da
 # providers check
 if [[ -x "$ROOT_DIR/scripts/run_cpu.sh" ]]; then
   echo "== CPU providers =="
-  "$ROOT_DIR/scripts/run_cpu.sh" -c "import importlib.util; spec=importlib.util.find_spec('onnxruntime');\nprint('onnxruntime in CPU env:', bool(spec));\nprint('providers:', __import__('onnxruntime').get_available_providers() if spec else 'N/A')"
+  "$ROOT_DIR/scripts/run_cpu.sh" - <<'PY'
+import importlib.util
+spec = importlib.util.find_spec("onnxruntime")
+print("onnxruntime in CPU env:", bool(spec))
+if spec:
+  import onnxruntime as ort
+  print("providers:", ort.get_available_providers())
+else:
+  print("providers:", "N/A")
+PY
 else
   echo "WARN: scripts/run_cpu.sh not found; skipping CPU providers"
 fi
