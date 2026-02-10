@@ -26,7 +26,7 @@ def main() -> None:
     p.add_argument("--processed-dir", default=os.environ.get("PROCESSED_ROOT", "processed"))
     p.add_argument("--out-dir", default="")
     p.add_argument("--target-hours", type=int, default=30)
-    p.add_argument("--mode", choices=["short", "long", "full"], default="short")
+    p.add_argument("--mode", choices=["short", "long", "full", "split"], default="short")
     p.add_argument("--strategy", choices=["default", "pangu_ref"], default="default")
     p.add_argument("--short-step", type=int, default=1)
     p.add_argument("--long-step", type=int, default=24)
@@ -43,29 +43,76 @@ def main() -> None:
     output_root = os.environ.get("OUTPUT_ROOT", "outputs")
     out_dir = args.out_dir or os.path.join(output_root, f"forecast_{args.target_hours}h")
 
-    schedule = build_schedule(
-        target_hours=args.target_hours,
-        short_until=84,
-        short_step=args.short_step,
-        long_step=args.long_step,
-        mode=args.mode,
-        strategy=args.strategy,
-    )
+    if args.mode == "split":
+        if args.target_hours <= 84:
+            raise SystemExit("split mode requires target_hours > 84")
+        schedule = None
+    else:
+        schedule = build_schedule(
+            target_hours=args.target_hours,
+            short_until=84,
+            short_step=args.short_step,
+            long_step=args.long_step,
+            mode=args.mode,
+            strategy=args.strategy,
+        )
 
     print("[forecast] mode:", args.mode)
     print("[forecast] target_hours:", args.target_hours)
-    print("[forecast] schedule steps:", schedule.steps)
+    if schedule is not None:
+        print("[forecast] schedule steps:", schedule.steps)
     print("[forecast] strategy:", args.strategy)
     print("[forecast] models_dir:", args.models_dir)
     print("[forecast] processed_dir:", args.processed_dir)
     print("[forecast] out_dir:", out_dir)
 
     if args.dry_run:
+        if args.mode == "split":
+            short_sched = build_schedule(
+                target_hours=84,
+                short_until=84,
+                short_step=args.short_step,
+                long_step=args.long_step,
+                mode="short",
+                strategy=args.strategy,
+            )
+            long_sched = build_schedule(
+                target_hours=args.target_hours - 84,
+                short_until=84,
+                short_step=args.short_step,
+                long_step=args.long_step,
+                mode="long",
+                strategy=args.strategy,
+            )
+            print("[forecast] split short steps:", short_sched.steps)
+            print("[forecast] split long steps:", long_sched.steps)
         print("[forecast] dry-run only (no inference).")
         return
 
+    steps_to_check = []
+    if args.mode == "split":
+        short_sched = build_schedule(
+            target_hours=84,
+            short_until=84,
+            short_step=args.short_step,
+            long_step=args.long_step,
+            mode="short",
+            strategy=args.strategy,
+        )
+        long_sched = build_schedule(
+            target_hours=args.target_hours - 84,
+            short_until=84,
+            short_step=args.short_step,
+            long_step=args.long_step,
+            mode="long",
+            strategy=args.strategy,
+        )
+        steps_to_check = sorted(set(short_sched.steps + long_sched.steps))
+    else:
+        steps_to_check = sorted(set(schedule.steps))
+
     missing = []
-    for step in sorted(set(schedule.steps)):
+    for step in steps_to_check:
         name = os.path.join(args.models_dir, f"pangu_weather_{step}.onnx")
         if not os.path.exists(name):
             missing.append(name)
@@ -85,15 +132,38 @@ def main() -> None:
     )
 
     try:
-        result = runner.run_schedule(
-            schedule=schedule,
-            processed_dir=args.processed_dir,
-            out_dir=out_dir,
-            save_hours=_parse_hours(args.save_hours),
-            force=args.force,
-            save_all=args.save_all,
-        )
-        print("[forecast] report:", result.report_path)
+        if args.mode == "split":
+            out_dir_short = out_dir + "_84h"
+            out_dir_long = out_dir + "_276h"
+            result_short = runner.run_schedule(
+                schedule=short_sched,
+                processed_dir=args.processed_dir,
+                out_dir=out_dir_short,
+                save_hours=_parse_hours(args.save_hours),
+                force=args.force,
+                save_all=args.save_all,
+            )
+            print("[forecast] report short:", result_short.report_path)
+
+            result_long = runner.run_schedule(
+                schedule=long_sched,
+                processed_dir=args.processed_dir,
+                out_dir=out_dir_long,
+                save_hours=_parse_hours(args.save_hours),
+                force=args.force,
+                save_all=args.save_all,
+            )
+            print("[forecast] report long:", result_long.report_path)
+        else:
+            result = runner.run_schedule(
+                schedule=schedule,
+                processed_dir=args.processed_dir,
+                out_dir=out_dir,
+                save_hours=_parse_hours(args.save_hours),
+                force=args.force,
+                save_all=args.save_all,
+            )
+            print("[forecast] report:", result.report_path)
     except Exception as exc:
         msg = str(exc)
         if "Failed to allocate memory" in msg or "CUDA out of memory" in msg:
@@ -102,6 +172,7 @@ def main() -> None:
             print("  - add --threads 1")
             print("  - add --gpu-mem-limit-mb 4096 (or smaller)")
             print("  - use --short-step 6 (avoid 1h model in long runs)")
+            print("  - use --mode split (run 84h then 276h)")
             print("  - reduce target hours or use --mode short with fewer steps")
         raise
 

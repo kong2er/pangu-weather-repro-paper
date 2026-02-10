@@ -85,6 +85,10 @@ scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --shor
 ```
 如遇显存不足（OOM），可加：
 `--noarena` 或 `--gpu-mem-limit-mb 4096`。
+推荐 360h 稳定跑法（分段）：
+```bash
+scripts/run_360h_split.sh
+```
 
 ## 论文级图输出
 ```bash
