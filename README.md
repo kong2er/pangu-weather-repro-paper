@@ -112,6 +112,13 @@ source scripts/env_cpu.sh
 python -m pangu_weather_repro.smoke
 ```
 
+CPU 环境初始化（中文指引）：
+```bash
+scripts/create_cpu_venv.sh
+source scripts/env_cpu.sh
+python -m pangu_weather_repro.smoke
+```
+
 ## Smoke Types
 - CI smoke（无数据、无 GPU）：`uv sync` → `make smoke` → `uv run pytest -q`
 - Runtime smoke（有数据/模型）：`source configs/default.env` → `make smoke-runtime`
