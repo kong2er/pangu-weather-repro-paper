@@ -12,6 +12,7 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_DIR="/root/autodl-tmp/pangu-weather-repro/models"
 BASE_URL="https://huggingface.co/OpenEarthLab/Pangu-Weather/resolve/main"
 SOURCE="hf"
@@ -85,11 +86,17 @@ download() {
 }
 
 if [[ "${SOURCE}" == "gdrive" ]]; then
+  GD_CMD=""
   if command -v gdown >/dev/null 2>&1; then
-    gdown --fuzzy -O pangu_weather_1.onnx "${GDRIVE_1}"
-    gdown --fuzzy -O pangu_weather_3.onnx "${GDRIVE_3}"
-    gdown --fuzzy -O pangu_weather_6.onnx "${GDRIVE_6}"
-    gdown --fuzzy -O pangu_weather_24.onnx "${GDRIVE_24}"
+    GD_CMD="gdown"
+  elif [[ -x "${ROOT_DIR}/.venv-gpu/bin/python" ]]; then
+    GD_CMD="${ROOT_DIR}/.venv-gpu/bin/python -m gdown"
+  fi
+  if [[ -n "${GD_CMD}" ]]; then
+    ${GD_CMD} --fuzzy -O pangu_weather_1.onnx "${GDRIVE_1}"
+    ${GD_CMD} --fuzzy -O pangu_weather_3.onnx "${GDRIVE_3}"
+    ${GD_CMD} --fuzzy -O pangu_weather_6.onnx "${GDRIVE_6}"
+    ${GD_CMD} --fuzzy -O pangu_weather_24.onnx "${GDRIVE_24}"
   else
     echo "gdown not found."
     echo "Install via: scripts/install_extras.sh download"
