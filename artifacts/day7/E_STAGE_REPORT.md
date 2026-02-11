@@ -3,19 +3,19 @@
 ## Summary
 - streamlit_app_files: true
 - product_bundle_cli: true
-- product_bundle_check: skipped
-- product_bundle_note: rollout dir missing, config missing, or product cli/runner unavailable
+- product_bundle_check: ok
+- product_bundle_note: ran product bundle (z500, t+24)
 
 ## Paths
-- app entry: /home/kongkong/projects/pangu-weather-repro-paper/pangu_weather_repro/app/app.py
-- plots page: /home/kongkong/projects/pangu-weather-repro-paper/pangu_weather_repro/app/pages/Plots.py
-- product cli: /home/kongkong/projects/pangu-weather-repro-paper/tools/plot_product_bundle.py
-- product script: /home/kongkong/projects/pangu-weather-repro-paper/scripts/run_product_bundle.sh
+- app entry: /root/projects/pangu-weather-repro-uv/pangu_weather_repro/app/app.py
+- plots page: /root/projects/pangu-weather-repro-uv/pangu_weather_repro/app/pages/Plots.py
+- product cli: /root/projects/pangu-weather-repro-uv/tools/plot_product_bundle.py
+- product script: /root/projects/pangu-weather-repro-uv/scripts/run_product_bundle.sh
 - rollout_dir: /root/autodl-tmp/pangu-weather-repro/outputs/day4_rollout_30h
 
 ## Product Outputs
-- png_count: 0
-- json_count: 0
+- png_count: 11
+- json_count: 11
 
 ## Quick Commands
 ```bash
