@@ -28,6 +28,14 @@ def _auto_range(data: np.ndarray, vmin: float | None, vmax: float | None) -> tup
     return (float(p1) if vmin is None else float(vmin), float(p99) if vmax is None else float(vmax))
 
 
+def _normalize_extent(extent: tuple[float, float, float, float] | None) -> tuple[float, float, float, float]:
+    if extent is None:
+        return (0.0, 360.0, -90.0, 90.0)
+    if len(extent) != 4:
+        raise ValueError(f"extent must be 4 values, got: {extent}")
+    return tuple(float(x) for x in extent)
+
+
 def draw_global_fill(
     data: np.ndarray,
     out_png: str | Path,
@@ -43,6 +51,7 @@ def draw_global_fill(
     dpi: int = 220,
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
+    extent: tuple[float, float, float, float] | None = None,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
@@ -70,13 +79,13 @@ def draw_global_fill(
     geo_ok = geo_requested and ccrs is not None
     geo_error = ""
     vmin_use, vmax_use = _auto_range(data, vmin, vmax)
-    extent = (0.0, 360.0, -90.0, 90.0)
+    extent = _normalize_extent(extent)
 
     if geo_ok:
         try:
             fig = plt.figure(figsize=(7.0, 3.6), dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
-            ax.set_global()
+            ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines(linewidth=0.5)
             if cfeature is not None:
                 ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
@@ -129,6 +138,7 @@ def draw_global_fill(
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
         "geo_resource_hint": resource_hint,
         "geo_error": geo_error,
+        "extent": list(extent),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
     if extra_meta:
@@ -151,6 +161,7 @@ def draw_diff_fill(
     title: str = "",
     cmap: str = "RdBu_r",
     vlim: float | None = None,
+    extent: tuple[float, float, float, float] | None = None,
     dpi: int = 220,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
@@ -174,8 +185,9 @@ def draw_diff_fill(
     vmax = max(vmax, 1e-6)
     vmin = -vmax
 
+    extent = _normalize_extent(extent)
     fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
-    im = ax.imshow(diff, extent=(0.0, 360.0, -90.0, 90.0), origin="upper", cmap=cmap, vmin=vmin, vmax=vmax)
+    im = ax.imshow(diff, extent=extent, origin="upper", cmap=cmap, vmin=vmin, vmax=vmax)
     ax.set_xlabel("lon")
     ax.set_ylabel("lat")
     t = title or f"{var} pred-ref t+{lead_hour:03d}"
@@ -198,6 +210,7 @@ def draw_diff_fill(
         "cmap": cmap,
         "vmin": vmin,
         "vmax": vmax,
+        "extent": list(extent),
         "dpi": int(dpi),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
@@ -220,6 +233,7 @@ def draw_wind_vector(
     dpi: int = 220,
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
+    extent: tuple[float, float, float, float] | None = None,
     stride: int = 18,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
@@ -244,7 +258,7 @@ def draw_wind_vector(
     geo_requested = bool(with_geo)
     geo_ok = geo_requested and ccrs is not None
     geo_error = ""
-    extent = (0.0, 360.0, -90.0, 90.0)
+    extent = _normalize_extent(extent)
     speed = np.sqrt(u * u + v * v)
 
     lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
@@ -255,7 +269,7 @@ def draw_wind_vector(
         try:
             fig = plt.figure(figsize=(7.2, 3.8), dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
-            ax.set_global()
+            ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines(linewidth=0.5)
             if cfeature is not None:
                 ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
@@ -327,6 +341,7 @@ def draw_wind_vector(
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
         "geo_resource_hint": resource_hint,
         "geo_error": geo_error,
+        "extent": list(extent),
         "speed_min": float(np.nanmin(speed)),
         "speed_max": float(np.nanmax(speed)),
         "generated_at": datetime.utcnow().isoformat() + "Z",
@@ -351,6 +366,7 @@ def draw_msl_wind(
     dpi: int = 220,
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
+    extent: tuple[float, float, float, float] | None = None,
     stride: int = 18,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
@@ -376,7 +392,7 @@ def draw_msl_wind(
     geo_requested = bool(with_geo)
     geo_ok = geo_requested and ccrs is not None
     geo_error = ""
-    extent = (0.0, 360.0, -90.0, 90.0)
+    extent = _normalize_extent(extent)
     lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
     lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
     lon2d, lat2d = np.meshgrid(lon, lat)
@@ -388,7 +404,7 @@ def draw_msl_wind(
         try:
             fig = plt.figure(figsize=(7.2, 3.8), dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
-            ax.set_global()
+            ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines(linewidth=0.5)
             if cfeature is not None:
                 ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
@@ -464,6 +480,7 @@ def draw_msl_wind(
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
         "geo_resource_hint": resource_hint,
         "geo_error": geo_error,
+        "extent": list(extent),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
     if extra_meta:

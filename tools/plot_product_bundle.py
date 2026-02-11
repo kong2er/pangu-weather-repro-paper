@@ -42,6 +42,13 @@ def _parse_csv_int(text: str) -> list[int]:
     return values
 
 
+def _parse_extent(text: str) -> tuple[float, float, float, float]:
+    raw = [x.strip() for x in text.split(",") if x.strip()]
+    if len(raw) != 4:
+        raise ValueError("--extent expects 4 comma-separated values: lon_min,lon_max,lat_min,lat_max")
+    return (float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))
+
+
 def _preferred_rollout_dir(output_root: str) -> str:
     preferred = os.path.join(output_root, "day4_rollout_30h")
     if os.path.isdir(preferred):
@@ -152,6 +159,11 @@ def main() -> None:
     )
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
+    p.add_argument(
+        "--extent",
+        default="",
+        help="Optional map extent lon_min,lon_max,lat_min,lat_max (e.g. 95,145,10,50).",
+    )
     p.add_argument("--force", action="store_true", help="Overwrite existing png/json outputs.")
     args = p.parse_args()
 
@@ -165,6 +177,7 @@ def main() -> None:
     if not leads:
         raise ValueError("meta missing steps; cannot infer lead hours")
     lead_filter = set(_parse_csv_int(args.hours)) if args.hours else set(leads)
+    extent = _parse_extent(args.extent) if args.extent else None
     vars_list = [x.strip() for x in args.vars.split(",") if x.strip()]
     kinds = [x.strip() for x in args.kinds.split(",") if x.strip()]
     if not vars_list:
@@ -185,6 +198,8 @@ def main() -> None:
         print(f"[GEO] enabled, assets={args.geo_assets_dir}")
     else:
         print("[GEO] disabled")
+    if extent is not None:
+        print(f"[EXTENT] {extent}")
 
     generated = 0
     skipped = 0
@@ -217,8 +232,9 @@ def main() -> None:
                     units=UNITS_MAP.get(var, ""),
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
+                    extent=extent,
                     force=args.force,
-                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
                 )
                 if before and not args.force:
                     skipped += 1
@@ -247,8 +263,9 @@ def main() -> None:
                     var=var,
                     lead_hour=lead,
                     units=UNITS_MAP.get(var, ""),
+                    extent=extent,
                     force=args.force,
-                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
                 )
                 if before and not args.force:
                     skipped += 1
@@ -276,8 +293,9 @@ def main() -> None:
                     lead_hour=lead,
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
+                    extent=extent,
                     force=args.force,
-                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
                 )
                 if before and not args.force:
                     skipped += 1
@@ -306,8 +324,9 @@ def main() -> None:
                     lead_hour=lead,
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
+                    extent=extent,
                     force=args.force,
-                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
                 )
                 if before and not args.force:
                     skipped += 1
