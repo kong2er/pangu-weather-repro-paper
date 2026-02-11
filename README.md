@@ -186,6 +186,10 @@ bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 ```bash
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
 ```
+区域产品图（示例：华东范围）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,u10 --hours 24,30 --kinds fill,vector,msl_wind --extent 95,145,10,50 --force
+```
 一键生成完整图族（fill + diff + vector + msl_wind）：
 ```bash
 bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
@@ -211,7 +215,7 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 ```
 - 开启地理底图（可选）：
 ```bash
-scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force
+scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --extent 95,145,10,50 --force
 ```
 - 无 `cartopy/scipy` 或无地理资源时会自动回退到普通绘图，不会中断流程
 - 地理资源放置说明见：`assets/geo/README.md`
