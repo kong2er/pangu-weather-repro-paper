@@ -27,3 +27,17 @@ if pngs:
     st.write(pngs[:50])
 else:
     st.info("No PNG files found under figures/.")
+
+st.subheader("Product Bundle（产品图族）")
+product_dir = fig_root / "product"
+product_pngs = _collect_pngs(product_dir)
+if product_pngs:
+    st.write("figures/product 已生成文件：")
+    st.write(product_pngs[:50])
+else:
+    st.info("figures/product 为空。")
+
+st.code(
+    "bash scripts/run_product_bundle.sh --vars z500,t2m --hours 24,30",
+    language="bash",
+)
