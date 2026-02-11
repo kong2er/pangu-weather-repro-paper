@@ -15,7 +15,12 @@ from typing import Any
 import numpy as np
 
 from pangu_weather_repro.contracts import SURFACE_VARS
-from pangu_weather_repro.visualization.product_draw import draw_diff_fill, draw_global_fill, draw_wind_vector
+from pangu_weather_repro.visualization.product_draw import (
+    draw_diff_fill,
+    draw_global_fill,
+    draw_msl_wind,
+    draw_wind_vector,
+)
 
 SURFACE_INDEX = {name: idx for idx, name in enumerate(SURFACE_VARS)}
 UNITS_MAP = {
@@ -143,7 +148,7 @@ def main() -> None:
     p.add_argument(
         "--kinds",
         default="fill",
-        help="Comma list from: fill,diff,vector (diff supports z500; vector supports uv10).",
+        help="Comma list from: fill,diff,vector,msl_wind (diff supports z500; vector/msl_wind support uv10).",
     )
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
@@ -265,6 +270,36 @@ def main() -> None:
                 out_png = out_dir / f"product_vector_uv10_t+{lead:03d}.png"
                 before = out_png.exists()
                 png, meta_json = draw_wind_vector(
+                    u10,
+                    v10,
+                    out_png,
+                    lead_hour=lead,
+                    with_geo=args.with_geo,
+                    geo_assets_dir=args.geo_assets_dir,
+                    force=args.force,
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                )
+                if before and not args.force:
+                    skipped += 1
+                else:
+                    generated += 1
+                print(f"[FILE] {png}")
+                print(f"[META] {meta_json}")
+
+            if "msl_wind" in kinds:
+                if var != "u10":
+                    continue
+                try:
+                    u10, v10 = _load_uv10_by_lead(rollout_dir, lead)
+                    msl = _load_surface_by_lead(rollout_dir, "msl", lead)
+                except Exception as exc:
+                    print(f"[WARN] cannot load msl/uv10 for msl_wind lead={lead}: {exc}")
+                    skipped += 1
+                    continue
+                out_png = out_dir / f"product_msl_wind_t+{lead:03d}.png"
+                before = out_png.exists()
+                png, meta_json = draw_msl_wind(
+                    msl,
                     u10,
                     v10,
                     out_png,
