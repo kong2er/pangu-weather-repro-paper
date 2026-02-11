@@ -116,6 +116,8 @@ scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 
 ```bash
 scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123 --pad-to-global --fill-value 0.0
 ```
+Region 元数据（示例输出）：
+- `outputs/region_demo/region_meta.json`（包含裁剪范围、切片索引、形状、回填信息）
 
 ## Troubleshooting（常见错误 → 命令）
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`

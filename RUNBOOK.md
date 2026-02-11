@@ -103,6 +103,8 @@ scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 
 ```bash
 scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123 --pad-to-global --fill-value 0.0
 ```
+产物说明：
+- `region_meta.json` 包含裁剪范围、切片索引、形状与回填信息
 
 ## 9. Day7 metrics（可选）
 ```bash

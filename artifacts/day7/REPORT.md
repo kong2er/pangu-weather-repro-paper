@@ -78,3 +78,4 @@
 - 论文图包已生成（figures/paper）
 - Region 适配 demo 已验证
 - 推理对齐记录已生成（artifacts/day7/alignment_experiments.md）
+ - Region 元数据与回填信息已记录（region_meta.json）

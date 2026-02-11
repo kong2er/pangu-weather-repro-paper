@@ -50,6 +50,8 @@ def main() -> None:
     np.save(os.path.join(args.out_dir, "region_pressure.npy"), region_pressure)
     np.save(os.path.join(args.out_dir, "region_surface.npy"), region_surface)
 
+    global_pressure = None
+    global_surface = None
     if args.pad_to_global:
         lat_slice, lon_slice = adapter._slice_indices()
         padder = PaddedRegionAdapter(
@@ -76,7 +78,11 @@ def main() -> None:
         "surface_shape": list(region_surface.shape),
         "pad_to_global": args.pad_to_global,
         "fill_value": args.fill_value,
+        "adapter_meta": adapter.metadata(),
     }
+    if global_pressure is not None and global_surface is not None:
+        meta["global_pressure_shape"] = list(global_pressure.shape)
+        meta["global_surface_shape"] = list(global_surface.shape)
     with open(os.path.join(args.out_dir, "region_meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
 
