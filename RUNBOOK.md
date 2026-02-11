@@ -159,3 +159,13 @@ bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 预期：
 - 启动日志打印 URL
 - 页面显示环境信息、模型目录检查与输出目录列表
+
+## 14. E2 产品图族（可选）
+命令（单行可复制）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
+```
+说明：
+- 默认幂等，不覆盖已有 `figures/product/*` 产物
+- 需要重画时显式加：`--force`
+- 输出包含 PNG 与 JSON 元数据，便于复现记录与论文附录追溯

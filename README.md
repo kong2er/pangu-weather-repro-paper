@@ -181,6 +181,18 @@ bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 - 页面为骨架：`Home / Forecast / Plots`
 - 默认仅读取环境与目录信息，不改动现有产物
 
+## E2 产品图族（可选）
+生成产品图（默认不覆盖，需覆盖请加 `--force`）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
+```
+产物：
+- `figures/product/product_*.png`
+- `figures/product/product_*.json`
+说明：
+- 与 `plot_paper_bundle.py` 并行存在，不替代论文图流程
+- `Plots` 页面会自动列出 `figures/product` 下文件
+
 ## 收官验收清单（建议逐条勾选）
 1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
 2. GPU 最小链路通过：`scripts/regression_minimal.sh`
