@@ -1,6 +1,7 @@
 """Plots page for Streamlit skeleton."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -12,6 +13,17 @@ def _collect_pngs(base: Path) -> list[str]:
     if not base.exists():
         return []
     return sorted([str(p.relative_to(base)) for p in base.rglob("*.png")])[:200]
+
+
+def _read_json_meta(product_dir: Path, rel_png: str) -> dict[str, object]:
+    meta_path = product_dir / rel_png.replace(".png", ".json")
+    if not meta_path.exists():
+        return {}
+    try:
+        with open(meta_path, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 
 st.title("Plots")
@@ -63,6 +75,21 @@ if product_pngs:
 
         st.write(f"筛选结果：{len(filtered)} 个文件")
         st.write(filtered[:80])
+
+        preview_rows = []
+        for rel in filtered[:20]:
+            meta = _read_json_meta(product_dir, rel)
+            preview_rows.append(
+                {
+                    "file": rel,
+                    "style_profile": meta.get("style_profile", ""),
+                    "extent": meta.get("extent", []),
+                    "with_geo": meta.get("with_geo", ""),
+                }
+            )
+        if preview_rows:
+            st.caption("元数据预览（前 20 个）")
+            st.dataframe(preview_rows, use_container_width=True)
 else:
     st.info("figures/product 为空。")
 

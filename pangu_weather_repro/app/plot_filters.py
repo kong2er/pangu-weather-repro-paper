@@ -17,6 +17,10 @@ def parse_product_name(name: str) -> tuple[str, str, str]:
     if m:
         return ("vector", m.group(1), m.group(2))
 
+    m = re.match(r"^product_wind_speed_t\+(\d{3})\.png$", name)
+    if m:
+        return ("wind_speed", "wind_speed", m.group(1))
+
     m = re.match(r"^product_msl_wind_t\+(\d{3})\.png$", name)
     if m:
         return ("msl_wind", "msl_wind", m.group(1))

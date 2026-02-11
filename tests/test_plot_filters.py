@@ -17,5 +17,9 @@ def test_parse_msl_wind_name():
     assert parse_product_name("product_msl_wind_t+030.png") == ("msl_wind", "msl_wind", "030")
 
 
+def test_parse_wind_speed_name():
+    assert parse_product_name("product_wind_speed_t+024.png") == ("wind_speed", "wind_speed", "024")
+
+
 def test_parse_invalid_name():
     assert parse_product_name("other_plot.png") == ("other", "other", "other")
