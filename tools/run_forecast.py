@@ -294,7 +294,14 @@ def main() -> None:
             print("  - use --resume-from <out_dir> to continue")
             print("  - or pass --out-dir to a new directory")
             print("  - or add --force to overwrite")
-        if "Failed to allocate memory" in msg or "CUDA out of memory" in msg:
+        oom_signals = [
+            "Failed to allocate memory",
+            "CUDA out of memory",
+            "BFCArena::AllocateRawInternal",
+            "Available memory of",
+            "smaller than requested bytes",
+        ]
+        if any(s in msg for s in oom_signals):
             print("[forecast] OOM detected. Try one of:")
             print("  - add --noarena")
             print("  - add --threads 1")
