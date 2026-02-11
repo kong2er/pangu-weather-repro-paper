@@ -101,10 +101,15 @@ if product_pngs:
         cmd = (
             'bash scripts/run_product_bundle.sh '
             '--rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" '
-            f'--vars {var_arg} --hours {hour_arg} --kinds {kind_arg} --force'
+            f'--vars {var_arg} --hours {hour_arg} --kinds {kind_arg} --style-profile standard --force'
         )
         st.caption("可复制命令（按当前筛选生成）")
         st.code(cmd, language="bash")
+        st.caption("区域图模板（可选，示例范围：95,145,10,50）")
+        st.code(
+            cmd.replace(" --force", " --extent 95,145,10,50 --force"),
+            language="bash",
+        )
 else:
     st.info("figures/product 为空。")
 
