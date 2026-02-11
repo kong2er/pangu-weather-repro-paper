@@ -39,8 +39,8 @@
 
 ## 360h 分段验证（中文）
 - 状态：PASS（分段 84h + 276h）
-- 短段报告：`outputs/forecast_360h_split_20260210_220939_84h/forecast_report.json`
-- 长段报告：`outputs/forecast_360h_split_20260210_220939_276h/forecast_report.json`
+- 短段报告：`outputs/forecast_360h_split_20260211_102314_84h/forecast_report.json`
+- 长段报告：`outputs/forecast_360h_split_20260211_102314_276h/forecast_report.json`
 - 说明：split 模式避免单次 360h OOM，同时保持 pangu_ref 调度策略；支持 `--resume-from` 续跑不中断
 
 ## 变更文件（关键）
