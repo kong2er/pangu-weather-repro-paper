@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/install_extras.sh {rmse|plots|download|all} [--force]"
+  echo "Usage: scripts/install_extras.sh {rmse|plots|download|streamlit|all} [--force]"
   echo "Purpose: install optional deps into .venv-gpu."
   echo "Default: if deps already present, do nothing."
   exit 0
@@ -60,16 +60,27 @@ PY
     fi
     ${PIP} install -U cdsapi requests tqdm pyyaml gdown
     ;;
+  streamlit)
+    if [[ "${FORCE}" != "--force" ]]; then
+      if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
+import streamlit
+PY
+        echo "extras already present (streamlit). Use --force to reinstall."
+        exit 0
+      fi
+    fi
+    ${PIP} install -U streamlit
+    ;;
   all)
     if [[ "${FORCE}" != "--force" ]]; then
       if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
-import netCDF4, cftime, matplotlib, cartopy, cdsapi, requests, tqdm, yaml, gdown
+import netCDF4, cftime, matplotlib, cartopy, cdsapi, requests, tqdm, yaml, gdown, streamlit
 PY
         echo "extras already present (all). Use --force to reinstall."
         exit 0
       fi
     fi
-    ${PIP} install -U netCDF4 cftime matplotlib cartopy cdsapi requests tqdm pyyaml gdown
+    ${PIP} install -U netCDF4 cftime matplotlib cartopy cdsapi requests tqdm pyyaml gdown streamlit
     ;;
   *)
     echo "Unknown mode: ${MODE}"

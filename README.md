@@ -168,6 +168,19 @@ https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-i
 ## Full Run（可选，Day1–Day8）
 完整流程与排错细节见 `RUNBOOK.md`。
 
+## E1 Streamlit 骨架（可选）
+安装：
+```bash
+bash scripts/install_extras.sh streamlit
+```
+启动：
+```bash
+bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
+```
+说明：
+- 页面为骨架：`Home / Forecast / Plots`
+- 默认仅读取环境与目录信息，不改动现有产物
+
 ## 收官验收清单（建议逐条勾选）
 1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
 2. GPU 最小链路通过：`scripts/regression_minimal.sh`

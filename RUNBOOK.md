@@ -150,3 +150,12 @@ https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-i
 ```bash
 scripts/run_alignment_experiments.sh
 ```
+
+## 13. E1 Streamlit 骨架（可选）
+```bash
+bash scripts/install_extras.sh streamlit
+bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
+```
+预期：
+- 启动日志打印 URL
+- 页面显示环境信息、模型目录检查与输出目录列表
