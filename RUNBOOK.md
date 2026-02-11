@@ -81,6 +81,7 @@ scripts/run_360h_split.sh
 source configs/default.env
 scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --var z500
 ```
+提示：支持 `--no-map`、`--cmap`、`--vmin/--vmax`、`--dpi`；若缺 cartopy，会自动回退到无地图绘制。
 
 ## 8. Region 扩展（示例裁剪）
 ```bash

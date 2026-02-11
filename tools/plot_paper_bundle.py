@@ -11,7 +11,7 @@ import json
 import os
 import subprocess
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -65,6 +65,28 @@ def _ensure_matplotlib():
         raise RuntimeError("matplotlib missing. Run: scripts/install_extras.sh plots") from exc
 
 
+def _try_import_cartopy() -> Tuple[Optional[object], Optional[object]]:
+    try:
+        import cartopy.crs as ccrs  # type: ignore
+        import cartopy.feature as cfeature  # type: ignore
+
+        return ccrs, cfeature
+    except Exception:
+        return None, None
+
+
+def _default_extent() -> Tuple[float, float, float, float]:
+    # lon: 0..360, lat: -90..90
+    return (0.0, 360.0, -90.0, 90.0)
+
+
+def _auto_range(data: np.ndarray, vmin: float | None, vmax: float | None) -> Tuple[float, float]:
+    if vmin is not None and vmax is not None:
+        return vmin, vmax
+    p1, p99 = np.percentile(data, [1, 99])
+    return (float(p1) if vmin is None else vmin, float(p99) if vmax is None else vmax)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--var", default="z500")
@@ -72,7 +94,10 @@ def main() -> None:
     p.add_argument("--meta", default="")
     p.add_argument("--outdir", default=os.path.join("figures", "paper"))
     p.add_argument("--no-map", action="store_true")
-    p.add_argument("--dpi", type=int, default=220)
+    p.add_argument("--dpi", type=int, default=300)
+    p.add_argument("--cmap", default="viridis")
+    p.add_argument("--vmin", type=float, default=None)
+    p.add_argument("--vmax", type=float, default=None)
     p.add_argument("--force", action="store_true")
     args = p.parse_args()
 
@@ -100,6 +125,12 @@ def main() -> None:
 
     os.makedirs(args.outdir, exist_ok=True)
     git_hash = _git_hash()
+    ccrs, cfeature = _try_import_cartopy()
+    if not args.no_map and ccrs is None:
+        print("[paper] cartopy not available, fallback to no-map rendering.")
+        args.no_map = True
+
+    extent = _default_extent()
     for idx, step in enumerate(steps or [0]):
         lead = sum(steps[: idx + 1]) if steps else 0
         out_png = os.path.join(args.outdir, f"paper_{args.var}_t+{lead:03d}.png")
@@ -109,10 +140,35 @@ def main() -> None:
             continue
 
         data = pred[idx]
-        fig, ax = plt.subplots(figsize=(6.0, 3.2), dpi=args.dpi)
-        im = ax.imshow(data, cmap="viridis")
+        vmin, vmax = _auto_range(data, args.vmin, args.vmax)
+        if args.no_map:
+            fig, ax = plt.subplots(figsize=(6.2, 3.4), dpi=args.dpi)
+            im = ax.imshow(data, cmap=args.cmap, vmin=vmin, vmax=vmax, extent=extent, origin="upper")
+            ax.set_xlabel("lon")
+            ax.set_ylabel("lat")
+        else:
+            fig = plt.figure(figsize=(6.2, 3.4), dpi=args.dpi)
+            ax = plt.axes(projection=ccrs.PlateCarree())
+            ax.set_global()
+            ax.coastlines(linewidth=0.6)
+            if cfeature is not None:
+                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.3)
+            im = ax.imshow(
+                data,
+                cmap=args.cmap,
+                vmin=vmin,
+                vmax=vmax,
+                extent=extent,
+                origin="upper",
+                transform=ccrs.PlateCarree(),
+            )
+            gl = ax.gridlines(draw_labels=True, linewidth=0.2, alpha=0.4, linestyle="--")
+            gl.top_labels = False
+            gl.right_labels = False
         ax.set_title(f"{args.var} t+{lead:03d} ({units})")
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        if units:
+            cb.set_label(units)
         fig.tight_layout()
         fig.savefig(out_png)
         plt.close(fig)
@@ -123,6 +179,10 @@ def main() -> None:
             "date": date,
             "hour": hour,
             "units": units,
+            "cmap": args.cmap,
+            "vmin": vmin,
+            "vmax": vmax,
+            "dpi": args.dpi,
             "pred_path": pred_path,
             "rollout_dir": rollout_dir,
             "git": git_hash,

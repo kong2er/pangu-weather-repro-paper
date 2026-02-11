@@ -94,6 +94,7 @@ scripts/run_360h_split.sh
 ```bash
 scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --var z500
 ```
+可选参数：`--no-map`（不画底图）、`--cmap`、`--vmin/--vmax`、`--dpi`。若未安装 cartopy，会自动回退到无地图绘制。
 
 ## Region 扩展（可插拔数据适配层）
 ```bash

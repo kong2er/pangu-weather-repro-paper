@@ -15,14 +15,16 @@
 - 论文级可视化输出
 - 地区数据接入的可插拔适配层
 
-## 能力差距（必须实现）
-- 统一推理入口（模型选择 + 调度策略）
-- 1–84h / 84–360h 调度逻辑
-- 论文级图输出规范与元数据
+## 已实现能力（对齐完成）
+- 统一推理入口（`tools/run_forecast.py`）
+- 1–84h / 84–360h 调度逻辑（`infer/scheduler.py`，支持 `pangu_ref` 策略）
+- 论文级图输出规范与元数据（`tools/plot_paper_bundle.py`）
+- Region 适配层 + demo（`pangu_weather_repro/region` + `tools/region_demo.py`）
 
-## 能力差距（先搭接口）
-- RegionDatasetAdapter 抽象层（地区数据接入）
-- 参照仓库能力对照报告与同步脚本
+## 仍需完善（优化项）
+- 360h 端到端推理更稳的显存策略（推荐 split + no-cache）
+- 论文图风格进一步对齐（色标/字体/地图细节）
+- 参考仓库 UI（Streamlit）暂未提供
 
 ## 实施路径
 - Stage A: 稳定性收口（脚本幂等 + 统一入口 + 一键验收）
