@@ -190,7 +190,7 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 ```bash
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,u10 --hours 24,30 --kinds fill,vector,msl_wind --extent 95,145,10,50 --force
 ```
-一键生成完整图族（fill + diff + vector + msl_wind）：
+一键生成完整图族（fill + diff + vector + wind_speed + msl_wind）：
 ```bash
 bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
 ```
@@ -208,6 +208,10 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 - 可选风场图（uv10 矢量）：
 ```bash
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector --force
+```
+- 可选风速图（由 uv10 合成）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds wind_speed --force
 ```
 - 可选业务组合图（msl + uv10）：
 ```bash

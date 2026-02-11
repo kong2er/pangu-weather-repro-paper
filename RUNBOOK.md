@@ -186,6 +186,10 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 ```bash
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector --force
 ```
+- 风速图（由 uv10 合成）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds wind_speed --force
+```
 - 业务组合图（msl + uv10）：
 ```bash
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds msl_wind --force

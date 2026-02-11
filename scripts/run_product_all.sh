@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
   echo "Usage: scripts/run_product_all.sh [--rollout-dir PATH] [--hours 24,30] [--with-geo] [--force]"
-  echo "中文说明: 一键生成 fill/diff/vector/msl_wind 四类产品图，默认不覆盖。"
+  echo "中文说明: 一键生成 fill/diff/vector/wind_speed/msl_wind 五类产品图，默认不覆盖。"
   echo "Example: scripts/run_product_all.sh --rollout-dir \"\$OUTPUT_ROOT/day4_rollout_30h\" --hours 24,30"
   exit 0
 fi
@@ -91,12 +91,12 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   --kinds diff \
   ${FORCE}
 
-# vector and msl_wind from uv10
+# vector / wind_speed / msl_wind from uv10
 bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   --rollout-dir "${ROLLOUT_DIR}" \
   --vars u10 \
   --hours "${HOURS}" \
-  --kinds vector,msl_wind \
+  --kinds vector,wind_speed,msl_wind \
   ${WITH_GEO} \
   ${FORCE}
 
