@@ -64,12 +64,12 @@ class GlobalGridCropAdapter(RegionDatasetAdapter):
         lat_slice, lon_slice = self._slice_indices()
         return {
             "type": "GlobalGridCropAdapter",
-            "lat_min": self.lat_min,
-            "lat_max": self.lat_max,
-            "lon_min": self.lon_min,
-            "lon_max": self.lon_max,
-            "lat_slice": [lat_slice.start, lat_slice.stop],
-            "lon_slice": [lon_slice.start, lon_slice.stop],
+            "lat_min": float(self.lat_min),
+            "lat_max": float(self.lat_max),
+            "lon_min": float(self.lon_min),
+            "lon_max": float(self.lon_max),
+            "lat_slice": [int(lat_slice.start), int(lat_slice.stop)],
+            "lon_slice": [int(lon_slice.start), int(lon_slice.stop)],
         }
 
 
@@ -99,9 +99,9 @@ class PaddedRegionAdapter(RegionDatasetAdapter):
     def metadata(self) -> dict:
         return {
             "type": "PaddedRegionAdapter",
-            "fill_value": self.fill_value,
-            "global_shape_pressure": list(self.global_shape_pressure),
-            "global_shape_surface": list(self.global_shape_surface),
-            "lat_slice": [self.lat_slice.start, self.lat_slice.stop],
-            "lon_slice": [self.lon_slice.start, self.lon_slice.stop],
+            "fill_value": float(self.fill_value),
+            "global_shape_pressure": [int(x) for x in self.global_shape_pressure],
+            "global_shape_surface": [int(x) for x in self.global_shape_surface],
+            "lat_slice": [int(self.lat_slice.start), int(self.lat_slice.stop)],
+            "lon_slice": [int(self.lon_slice.start), int(self.lon_slice.stop)],
         }
