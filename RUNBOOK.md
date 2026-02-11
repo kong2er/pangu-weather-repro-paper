@@ -169,3 +169,11 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 - 默认幂等，不覆盖已有 `figures/product/*` 产物
 - 需要重画时显式加：`--force`
 - 输出包含 PNG 与 JSON 元数据，便于复现记录与论文附录追溯
+
+地理样式（E3，可选）：
+```bash
+scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force
+```
+说明：
+- 若 `cartopy/scipy` 或地理资源不完整，系统会自动回退到普通绘图，且在 JSON 记录 `geo_error`
+- 资源目录说明：`assets/geo/README.md`

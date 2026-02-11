@@ -192,6 +192,12 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 说明：
 - 与 `plot_paper_bundle.py` 并行存在，不替代论文图流程
 - `Plots` 页面会自动列出 `figures/product` 下文件
+- 开启地理底图（可选）：
+```bash
+scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force
+```
+- 无 `cartopy/scipy` 或无地理资源时会自动回退到普通绘图，不会中断流程
+- 地理资源放置说明见：`assets/geo/README.md`
 
 ## 收官验收清单（建议逐条勾选）
 1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
