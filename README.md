@@ -192,6 +192,11 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 说明：
 - 与 `plot_paper_bundle.py` 并行存在，不替代论文图流程
 - `Plots` 页面会自动列出 `figures/product` 下文件
+- 可选差值图（pred-ref，z500）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force
+```
+- `diff` 会优先使用 `eval_z500.npz` 内置 `gt_z500`；若缺失则自动回退读取 `eval_z500_meta.json` 的 `gt_paths`（无需重跑 Day4）
 - 开启地理底图（可选）：
 ```bash
 scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force

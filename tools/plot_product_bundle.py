@@ -75,10 +75,44 @@ def _load_z500_by_idx(rollout_dir: str, idx: int) -> np.ndarray:
 def _load_z500_gt_by_idx(rollout_dir: str, idx: int) -> np.ndarray:
     pred_path = os.path.join(rollout_dir, "eval_z500.npz")
     with np.load(pred_path) as data:
-        if "gt_z500" not in data:
-            raise KeyError(f"gt_z500 missing in {pred_path}")
-        arr = data["gt_z500"]
-    return np.asarray(arr[idx], dtype=np.float32)
+        if "gt_z500" in data:
+            arr = data["gt_z500"]
+            return np.asarray(arr[idx], dtype=np.float32)
+
+    # Fallback: derive GT from meta gt_paths (ERA5 pressure files).
+    meta = _load_meta(rollout_dir)
+    gt_paths = meta.get("gt_paths") or []
+    if idx >= len(gt_paths):
+        raise KeyError(f"gt_paths missing index {idx} in eval_z500_meta.json")
+    gt_path = gt_paths[idx]
+    try:
+        import netCDF4 as nc
+    except Exception as exc:
+        raise RuntimeError("missing netCDF4 for diff fallback. Run: bash scripts/install_extras.sh rmse") from exc
+    if not os.path.exists(gt_path):
+        raise FileNotFoundError(gt_path)
+    ds = nc.Dataset(gt_path)
+    try:
+        if "z" not in ds.variables:
+            raise KeyError(f"z missing in {gt_path}")
+        lvl_name = "level" if "level" in ds.variables else "pressure_level"
+        if lvl_name not in ds.variables:
+            raise KeyError(f"level axis missing in {gt_path}")
+        levels = ds[lvl_name][:]
+        idx_arr = np.where(levels == 500)[0]
+        if len(idx_arr) == 0:
+            raise ValueError(f"500hPa not found in {gt_path}")
+        lvl_idx = int(idx_arr[0])
+        z = np.asarray(ds["z"][:])
+        if z.ndim == 4:
+            out = z[0, lvl_idx]
+        elif z.ndim == 3:
+            out = z[lvl_idx]
+        else:
+            raise ValueError(f"unsupported z shape: {z.shape}")
+        return np.asarray(out, dtype=np.float32)
+    finally:
+        ds.close()
 
 
 def _load_surface_by_lead(rollout_dir: str, var: str, lead: int) -> np.ndarray:

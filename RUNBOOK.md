@@ -169,6 +169,11 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 - 默认幂等，不覆盖已有 `figures/product/*` 产物
 - 需要重画时显式加：`--force`
 - 输出包含 PNG 与 JSON 元数据，便于复现记录与论文附录追溯
+- 差值图（z500）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force
+```
+- 若 `eval_z500.npz` 没有 `gt_z500`，会自动从 `eval_z500_meta.json` 的 `gt_paths` 加载 ERA5 真值
 
 地理样式（E3，可选）：
 ```bash
