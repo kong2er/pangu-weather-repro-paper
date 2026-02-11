@@ -4,6 +4,47 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+WITH_E_STAGE=0
+E_STAGE_FORCE=0
+
+usage() {
+  cat <<'EOF'
+Usage: bash scripts/final_verify.sh [--with-e-stage] [--e-stage-force]
+
+Options:
+  --with-e-stage   Also run E-stage verify (Streamlit/product checks).
+  --e-stage-force  Pass --force to scripts/run_e_stage_verify.sh (requires --with-e-stage).
+  -h, --help       Show this help message.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-e-stage)
+      WITH_E_STAGE=1
+      shift
+      ;;
+    --e-stage-force)
+      E_STAGE_FORCE=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: unknown arg: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$E_STAGE_FORCE" -eq 1 && "$WITH_E_STAGE" -ne 1 ]]; then
+  echo "ERROR: --e-stage-force requires --with-e-stage" >&2
+  exit 2
+fi
+
 fail() {
   echo "ERROR: $1" >&2
   exit "${2:-1}"
@@ -59,6 +100,17 @@ if [[ -x "$ROOT_DIR/scripts/run_gpu.sh" ]]; then
   "$ROOT_DIR/scripts/run_gpu.sh" -c "import onnxruntime as ort; assert 'CUDAExecutionProvider' in ort.get_available_providers(), 'CUDAExecutionProvider missing'"
 else
   fail "missing scripts/run_gpu.sh" 2
+fi
+
+if [[ "$WITH_E_STAGE" -eq 1 ]]; then
+  [[ -f "$ROOT_DIR/scripts/run_e_stage_verify.sh" ]] || fail "missing scripts/run_e_stage_verify.sh; run: git pull --rebase" 2
+  echo "== E-stage verify =="
+  if [[ "$E_STAGE_FORCE" -eq 1 ]]; then
+    bash "$ROOT_DIR/scripts/run_e_stage_verify.sh" --force
+  else
+    bash "$ROOT_DIR/scripts/run_e_stage_verify.sh"
+  fi
+  [[ -f "$ROOT_DIR/artifacts/day7/E_STAGE_REPORT.md" ]] || fail "missing artifacts/day7/E_STAGE_REPORT.md; run: bash scripts/run_e_stage_verify.sh --force" 2
 fi
 
 echo "FINAL VERIFY PASS"
