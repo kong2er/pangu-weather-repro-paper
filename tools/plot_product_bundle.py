@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 
 from pangu_weather_repro.contracts import SURFACE_VARS
-from pangu_weather_repro.visualization.product_draw import draw_diff_fill, draw_global_fill
+from pangu_weather_repro.visualization.product_draw import draw_diff_fill, draw_global_fill, draw_wind_vector
 
 SURFACE_INDEX = {name: idx for idx, name in enumerate(SURFACE_VARS)}
 UNITS_MAP = {
@@ -124,6 +124,14 @@ def _load_surface_by_lead(rollout_dir: str, var: str, lead: int) -> np.ndarray:
     return np.asarray(surface[SURFACE_INDEX[var]], dtype=np.float32)
 
 
+def _load_uv10_by_lead(rollout_dir: str, lead: int) -> tuple[np.ndarray, np.ndarray]:
+    path = os.path.join(rollout_dir, f"rollout_surface_{lead}h.npy")
+    surface = np.load(path)
+    u10 = np.asarray(surface[SURFACE_INDEX["u10"]], dtype=np.float32)
+    v10 = np.asarray(surface[SURFACE_INDEX["v10"]], dtype=np.float32)
+    return u10, v10
+
+
 def main() -> None:
     p = argparse.ArgumentParser(
         description="Generate product bundle png/json from rollout outputs (idempotent by default)."
@@ -135,7 +143,7 @@ def main() -> None:
     p.add_argument(
         "--kinds",
         default="fill",
-        help="Comma list from: fill,diff (diff currently supports z500 with gt_z500).",
+        help="Comma list from: fill,diff,vector (diff supports z500; vector supports uv10).",
     )
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
@@ -234,6 +242,35 @@ def main() -> None:
                     var=var,
                     lead_hour=lead,
                     units=UNITS_MAP.get(var, ""),
+                    force=args.force,
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                )
+                if before and not args.force:
+                    skipped += 1
+                else:
+                    generated += 1
+                print(f"[FILE] {png}")
+                print(f"[META] {meta_json}")
+
+            if "vector" in kinds:
+                if var != "u10":
+                    # vector 图只在 var=u10 时生成一次，避免重复文件。
+                    continue
+                try:
+                    u10, v10 = _load_uv10_by_lead(rollout_dir, lead)
+                except Exception as exc:
+                    print(f"[WARN] cannot load uv10 for vector lead={lead}: {exc}")
+                    skipped += 1
+                    continue
+                out_png = out_dir / f"product_vector_uv10_t+{lead:03d}.png"
+                before = out_png.exists()
+                png, meta_json = draw_wind_vector(
+                    u10,
+                    v10,
+                    out_png,
+                    lead_hour=lead,
+                    with_geo=args.with_geo,
+                    geo_assets_dir=args.geo_assets_dir,
                     force=args.force,
                     extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
                 )

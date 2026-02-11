@@ -2,6 +2,8 @@
 
 Current scope:
 - draw_global_fill: global contour-like filled map with metadata sidecar.
+- draw_diff_fill: pred-ref difference map.
+- draw_wind_vector: near-surface wind vector (u/v) map.
 """
 from __future__ import annotations
 
@@ -196,6 +198,136 @@ def draw_diff_fill(
         "vmin": vmin,
         "vmax": vmax,
         "dpi": int(dpi),
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+    }
+    if extra_meta:
+        meta.update(extra_meta)
+
+    with open(out_json, "w") as f:
+        json.dump(meta, f, indent=2)
+    return out_png, out_json
+
+
+def draw_wind_vector(
+    u: np.ndarray,
+    v: np.ndarray,
+    out_png: str | Path,
+    *,
+    out_json: str | Path | None = None,
+    lead_hour: int = 0,
+    title: str = "",
+    dpi: int = 220,
+    with_geo: bool = False,
+    geo_assets_dir: str | None = None,
+    stride: int = 18,
+    force: bool = False,
+    extra_meta: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Draw 10m wind vectors and write metadata json."""
+    import matplotlib.pyplot as plt
+
+    out_png = str(out_png)
+    out_json = str(out_json or out_png.replace(".png", ".json"))
+    if Path(out_png).exists() and not force:
+        return out_png, out_json
+
+    Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    u = np.asarray(u, dtype=np.float32)
+    v = np.asarray(v, dtype=np.float32)
+    if u.shape != v.shape or u.ndim != 2:
+        raise ValueError(f"draw_wind_vector expects two 2D arrays with same shape, got {u.shape} vs {v.shape}")
+
+    ccrs, cfeature = try_import_cartopy()
+    assets_dir = resolve_geo_assets_dir(geo_assets_dir)
+    resource_hint = detect_geo_resource(assets_dir)
+    geo_requested = bool(with_geo)
+    geo_ok = geo_requested and ccrs is not None
+    geo_error = ""
+    extent = (0.0, 360.0, -90.0, 90.0)
+    speed = np.sqrt(u * u + v * v)
+
+    lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
+    lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
+    lon2d, lat2d = np.meshgrid(lon, lat)
+
+    if geo_ok:
+        try:
+            fig = plt.figure(figsize=(7.2, 3.8), dpi=dpi)
+            ax = plt.axes(projection=ccrs.PlateCarree())
+            ax.set_global()
+            ax.coastlines(linewidth=0.5)
+            if cfeature is not None:
+                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+            bg = ax.imshow(
+                speed,
+                extent=extent,
+                origin="upper",
+                cmap="viridis",
+                transform=ccrs.PlateCarree(),
+                alpha=0.82,
+            )
+            ax.quiver(
+                lon2d[::stride, ::stride],
+                lat2d[::stride, ::stride],
+                u[::stride, ::stride],
+                v[::stride, ::stride],
+                transform=ccrs.PlateCarree(),
+                color="white",
+                linewidth=0.25,
+                scale=250.0,
+            )
+        except Exception as exc:
+            geo_ok = False
+            geo_error = str(exc)
+            fig, ax = plt.subplots(figsize=(7.2, 3.8), dpi=dpi)
+            bg = ax.imshow(speed, extent=extent, origin="upper", cmap="viridis", alpha=0.82)
+            ax.quiver(
+                lon2d[::stride, ::stride],
+                lat2d[::stride, ::stride],
+                u[::stride, ::stride],
+                v[::stride, ::stride],
+                color="white",
+                linewidth=0.25,
+                scale=250.0,
+            )
+            ax.set_xlabel("lon")
+            ax.set_ylabel("lat")
+    else:
+        fig, ax = plt.subplots(figsize=(7.2, 3.8), dpi=dpi)
+        bg = ax.imshow(speed, extent=extent, origin="upper", cmap="viridis", alpha=0.82)
+        ax.quiver(
+            lon2d[::stride, ::stride],
+            lat2d[::stride, ::stride],
+            u[::stride, ::stride],
+            v[::stride, ::stride],
+            color="white",
+            linewidth=0.25,
+            scale=250.0,
+        )
+        ax.set_xlabel("lon")
+        ax.set_ylabel("lat")
+
+    t = title or f"uv10 vector t+{lead_hour:03d}"
+    ax.set_title(t)
+    cb = fig.colorbar(bg, ax=ax, fraction=0.046, pad=0.03)
+    cb.set_label("m s^-1")
+    fig.tight_layout()
+    fig.savefig(out_png)
+    plt.close(fig)
+
+    meta = {
+        "type": "wind_vector",
+        "lead_hour": int(lead_hour),
+        "title": t,
+        "dpi": int(dpi),
+        "stride": int(stride),
+        "with_geo_requested": geo_requested,
+        "with_geo": bool(geo_ok),
+        "geo_assets_dir": str(assets_dir) if assets_dir else "",
+        "geo_resource_hint": resource_hint,
+        "geo_error": geo_error,
+        "speed_min": float(np.nanmin(speed)),
+        "speed_max": float(np.nanmax(speed)),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
     if extra_meta:
