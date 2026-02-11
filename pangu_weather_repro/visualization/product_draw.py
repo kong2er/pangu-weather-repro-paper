@@ -134,3 +134,73 @@ def draw_global_fill(
     with open(out_json, "w") as f:
         json.dump(meta, f, indent=2)
     return out_png, out_json
+
+
+def draw_diff_fill(
+    pred: np.ndarray,
+    ref: np.ndarray,
+    out_png: str | Path,
+    *,
+    out_json: str | Path | None = None,
+    var: str = "z500",
+    lead_hour: int = 0,
+    units: str = "",
+    title: str = "",
+    cmap: str = "RdBu_r",
+    vlim: float | None = None,
+    dpi: int = 220,
+    force: bool = False,
+    extra_meta: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Draw pred-ref difference map and write metadata json."""
+    import matplotlib.pyplot as plt
+
+    out_png = str(out_png)
+    out_json = str(out_json or out_png.replace(".png", ".json"))
+    if Path(out_png).exists() and not force:
+        return out_png, out_json
+
+    Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    pred = np.asarray(pred, dtype=np.float32)
+    ref = np.asarray(ref, dtype=np.float32)
+    if pred.shape != ref.shape or pred.ndim != 2:
+        raise ValueError(f"draw_diff_fill expects two 2D arrays with same shape, got {pred.shape} vs {ref.shape}")
+
+    diff = pred - ref
+    vmax = float(np.nanpercentile(np.abs(diff), 99)) if vlim is None else float(vlim)
+    vmax = max(vmax, 1e-6)
+    vmin = -vmax
+
+    fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
+    im = ax.imshow(diff, extent=(0.0, 360.0, -90.0, 90.0), origin="upper", cmap=cmap, vmin=vmin, vmax=vmax)
+    ax.set_xlabel("lon")
+    ax.set_ylabel("lat")
+    t = title or f"{var} pred-ref t+{lead_hour:03d}"
+    if units:
+        t += f" ({units})"
+    ax.set_title(t)
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
+    if units:
+        cb.set_label(units)
+    fig.tight_layout()
+    fig.savefig(out_png)
+    plt.close(fig)
+
+    meta = {
+        "type": "diff_fill",
+        "var": var,
+        "lead_hour": int(lead_hour),
+        "units": units,
+        "title": t,
+        "cmap": cmap,
+        "vmin": vmin,
+        "vmax": vmax,
+        "dpi": int(dpi),
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+    }
+    if extra_meta:
+        meta.update(extra_meta)
+
+    with open(out_json, "w") as f:
+        json.dump(meta, f, indent=2)
+    return out_png, out_json

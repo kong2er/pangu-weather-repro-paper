@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 
 from pangu_weather_repro.contracts import SURFACE_VARS
-from pangu_weather_repro.visualization.product_draw import draw_global_fill
+from pangu_weather_repro.visualization.product_draw import draw_diff_fill, draw_global_fill
 
 SURFACE_INDEX = {name: idx for idx, name in enumerate(SURFACE_VARS)}
 UNITS_MAP = {
@@ -72,6 +72,15 @@ def _load_z500_by_idx(rollout_dir: str, idx: int) -> np.ndarray:
     return np.asarray(arr[idx], dtype=np.float32)
 
 
+def _load_z500_gt_by_idx(rollout_dir: str, idx: int) -> np.ndarray:
+    pred_path = os.path.join(rollout_dir, "eval_z500.npz")
+    with np.load(pred_path) as data:
+        if "gt_z500" not in data:
+            raise KeyError(f"gt_z500 missing in {pred_path}")
+        arr = data["gt_z500"]
+    return np.asarray(arr[idx], dtype=np.float32)
+
+
 def _load_surface_by_lead(rollout_dir: str, var: str, lead: int) -> np.ndarray:
     if var not in SURFACE_INDEX:
         raise ValueError(f"unsupported surface var: {var}")
@@ -89,6 +98,11 @@ def main() -> None:
     p.add_argument("--out-dir", default=os.path.join("figures", "product"))
     p.add_argument("--vars", default="z500,t2m", help="Comma list from: z500,msl,u10,v10,t2m")
     p.add_argument("--hours", default="", help="Optional comma list of cumulative lead hours, e.g. 24,30")
+    p.add_argument(
+        "--kinds",
+        default="fill",
+        help="Comma list from: fill,diff (diff currently supports z500 with gt_z500).",
+    )
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
     p.add_argument("--force", action="store_true", help="Overwrite existing png/json outputs.")
@@ -105,8 +119,11 @@ def main() -> None:
         raise ValueError("meta missing steps; cannot infer lead hours")
     lead_filter = set(_parse_csv_int(args.hours)) if args.hours else set(leads)
     vars_list = [x.strip() for x in args.vars.split(",") if x.strip()]
+    kinds = [x.strip() for x in args.kinds.split(",") if x.strip()]
     if not vars_list:
         raise ValueError("--vars is empty")
+    if not kinds:
+        raise ValueError("--kinds is empty")
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -115,6 +132,7 @@ def main() -> None:
     print(f"[INPUT] rollout_dir={rollout_dir}")
     print(f"[OUTPUT] out_dir={out_dir}")
     print(f"[VARS] {vars_list}")
+    print(f"[KINDS] {kinds}")
     print(f"[LEADS] {sorted(lead_filter)}")
     if args.with_geo:
         print(f"[GEO] enabled, assets={args.geo_assets_dir}")
@@ -141,25 +159,56 @@ def main() -> None:
                 skipped += 1
                 continue
 
-            out_png = out_dir / f"product_{var}_t+{lead:03d}.png"
-            before = out_png.exists()
-            png, meta_json = draw_global_fill(
-                field,
-                out_png,
-                var=var,
-                lead_hour=lead,
-                units=UNITS_MAP.get(var, ""),
-                with_geo=args.with_geo,
-                geo_assets_dir=args.geo_assets_dir,
-                force=args.force,
-                extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
-            )
-            if before and not args.force:
-                skipped += 1
-            else:
-                generated += 1
-            print(f"[FILE] {png}")
-            print(f"[META] {meta_json}")
+            if "fill" in kinds:
+                out_png = out_dir / f"product_{var}_t+{lead:03d}.png"
+                before = out_png.exists()
+                png, meta_json = draw_global_fill(
+                    field,
+                    out_png,
+                    var=var,
+                    lead_hour=lead,
+                    units=UNITS_MAP.get(var, ""),
+                    with_geo=args.with_geo,
+                    geo_assets_dir=args.geo_assets_dir,
+                    force=args.force,
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                )
+                if before and not args.force:
+                    skipped += 1
+                else:
+                    generated += 1
+                print(f"[FILE] {png}")
+                print(f"[META] {meta_json}")
+
+            if "diff" in kinds:
+                if var != "z500":
+                    print(f"[WARN] diff not supported for var={var}, skip")
+                    skipped += 1
+                    continue
+                try:
+                    gt = _load_z500_gt_by_idx(rollout_dir, idx)
+                except Exception as exc:
+                    print(f"[WARN] cannot load gt for diff var={var} lead={lead}: {exc}")
+                    skipped += 1
+                    continue
+                out_png = out_dir / f"product_diff_{var}_t+{lead:03d}.png"
+                before = out_png.exists()
+                png, meta_json = draw_diff_fill(
+                    field,
+                    gt,
+                    out_png,
+                    var=var,
+                    lead_hour=lead,
+                    units=UNITS_MAP.get(var, ""),
+                    force=args.force,
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
+                )
+                if before and not args.force:
+                    skipped += 1
+                else:
+                    generated += 1
+                print(f"[FILE] {png}")
+                print(f"[META] {meta_json}")
 
     print(f"[DONE] generated={generated}, skipped={skipped}")
     print("[NEXT] Use: ls -lh figures/product | head")
