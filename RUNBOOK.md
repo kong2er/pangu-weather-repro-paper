@@ -206,3 +206,17 @@ scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4
 ```bash
 bash scripts/install_extras.sh plots --force
 ```
+
+## 15. G 阶段推荐流程（蓝本对齐）
+1) 一键完整图族：
+```bash
+source configs/default.env && source scripts/env_gpu.sh && bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
+```
+2) 区域化图族（style + extent）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,u10 --hours 24,30 --kinds fill,vector,wind_speed,msl_wind --style-profile standard --extent 95,145,10,50 --force
+```
+3) 生成对齐验收报告：
+```bash
+bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_STAGE_REPORT.md
+```

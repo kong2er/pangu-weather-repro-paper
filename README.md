@@ -228,6 +228,22 @@ scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4
 bash scripts/install_extras.sh plots --force
 ```
 
+## G 阶段推荐流程（蓝本对齐）
+建议按以下顺序执行（单行可复制）：
+```bash
+source configs/default.env && source scripts/env_gpu.sh && bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
+```
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,u10 --hours 24,30 --kinds fill,vector,wind_speed,msl_wind --style-profile standard --extent 95,145,10,50 --force
+```
+```bash
+bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_STAGE_REPORT.md
+```
+说明：
+- 第一条用于一键产出完整图族（含 wind_speed）。
+- 第二条用于区域化业务图（含 style/extent）。
+- 第三条用于生成并核查 E 阶段报告。
+
 ## 收官验收清单（建议逐条勾选）
 1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
 2. GPU 最小链路通过：`scripts/regression_minimal.sh`
