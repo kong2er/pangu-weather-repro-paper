@@ -51,6 +51,8 @@ have_app="false"
 have_product_cli="false"
 bundle_status="not_run"
 bundle_note=""
+vector_status="not_run"
+msl_wind_status="not_run"
 
 if [[ -f "${APP_ENTRY}" && -f "${PLOTS_PAGE}" ]]; then
   have_app="true"
@@ -79,6 +81,22 @@ else
   bundle_note="rollout dir missing, config missing, or product cli/runner unavailable"
 fi
 
+if [[ "${have_product_cli}" == "true" && -d "${ROLLOUT_DIR}" && -x "${ROOT_DIR}/scripts/run_gpu.sh" ]]; then
+  if "${ROOT_DIR}/scripts/run_gpu.sh" "${PRODUCT_CLI}" --rollout-dir "${ROLLOUT_DIR}" --vars u10 --hours 24 --kinds vector >/tmp/e_stage_vector.log 2>&1; then
+    vector_status="ok"
+  else
+    vector_status="failed"
+  fi
+  if "${ROOT_DIR}/scripts/run_gpu.sh" "${PRODUCT_CLI}" --rollout-dir "${ROLLOUT_DIR}" --vars u10 --hours 24 --kinds msl_wind >/tmp/e_stage_mslwind.log 2>&1; then
+    msl_wind_status="ok"
+  else
+    msl_wind_status="failed"
+  fi
+else
+  vector_status="skipped"
+  msl_wind_status="skipped"
+fi
+
 if [[ -d "${ROOT_DIR}/figures/product" ]]; then
   png_count="$(find "${ROOT_DIR}/figures/product" -maxdepth 1 -name '*.png' | wc -l | tr -d ' ')"
   json_count="$(find "${ROOT_DIR}/figures/product" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')"
@@ -95,6 +113,8 @@ cat > "${REPORT_PATH}" <<EOF
 - product_bundle_cli: ${have_product_cli}
 - product_bundle_check: ${bundle_status}
 - product_bundle_note: ${bundle_note}
+- product_vector_check: ${vector_status}
+- product_msl_wind_check: ${msl_wind_status}
 
 ## Paths
 - app entry: ${APP_ENTRY}
@@ -111,6 +131,7 @@ cat > "${REPORT_PATH}" <<EOF
 \`\`\`bash
 bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
+bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector,msl_wind
 \`\`\`
 
 ## Next

@@ -3,24 +3,27 @@
 ## Summary
 - streamlit_app_files: true
 - product_bundle_cli: true
-- product_bundle_check: ok
-- product_bundle_note: ran product bundle (z500, t+24)
+- product_bundle_check: skipped
+- product_bundle_note: rollout dir missing, config missing, or product cli/runner unavailable
+- product_vector_check: skipped
+- product_msl_wind_check: skipped
 
 ## Paths
-- app entry: /root/projects/pangu-weather-repro-uv/pangu_weather_repro/app/app.py
-- plots page: /root/projects/pangu-weather-repro-uv/pangu_weather_repro/app/pages/Plots.py
-- product cli: /root/projects/pangu-weather-repro-uv/tools/plot_product_bundle.py
-- product script: /root/projects/pangu-weather-repro-uv/scripts/run_product_bundle.sh
+- app entry: /home/kongkong/projects/pangu-weather-repro-paper/pangu_weather_repro/app/app.py
+- plots page: /home/kongkong/projects/pangu-weather-repro-paper/pangu_weather_repro/app/pages/Plots.py
+- product cli: /home/kongkong/projects/pangu-weather-repro-paper/tools/plot_product_bundle.py
+- product script: /home/kongkong/projects/pangu-weather-repro-paper/scripts/run_product_bundle.sh
 - rollout_dir: /root/autodl-tmp/pangu-weather-repro/outputs/day4_rollout_30h
 
 ## Product Outputs
-- png_count: 11
-- json_count: 11
+- png_count: 0
+- json_count: 0
 
 ## Quick Commands
 ```bash
 bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector,msl_wind
 ```
 
 ## Next

@@ -174,6 +174,14 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force
 ```
 - 若 `eval_z500.npz` 没有 `gt_z500`，会自动从 `eval_z500_meta.json` 的 `gt_paths` 加载 ERA5 真值
+- 风场图（uv10 矢量）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector --force
+```
+- 业务组合图（msl + uv10）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds msl_wind --force
+```
 
 地理样式（E3，可选）：
 ```bash

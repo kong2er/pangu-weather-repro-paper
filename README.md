@@ -197,6 +197,14 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force
 ```
 - `diff` 会优先使用 `eval_z500.npz` 内置 `gt_z500`；若缺失则自动回退读取 `eval_z500_meta.json` 的 `gt_paths`（无需重跑 Day4）
+- 可选风场图（uv10 矢量）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector --force
+```
+- 可选业务组合图（msl + uv10）：
+```bash
+bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds msl_wind --force
+```
 - 开启地理底图（可选）：
 ```bash
 scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force
