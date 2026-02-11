@@ -186,6 +186,10 @@ bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 ```bash
 bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
 ```
+一键生成完整图族（fill + diff + vector + msl_wind）：
+```bash
+bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
+```
 产物：
 - `figures/product/product_*.png`
 - `figures/product/product_*.json`
