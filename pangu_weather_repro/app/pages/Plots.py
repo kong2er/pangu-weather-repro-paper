@@ -2,31 +2,16 @@
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 
 import streamlit as st
+from pangu_weather_repro.app.plot_filters import parse_product_name
 
 
 def _collect_pngs(base: Path) -> list[str]:
     if not base.exists():
         return []
     return sorted([str(p.relative_to(base)) for p in base.rglob("*.png")])[:200]
-
-
-def _parse_product_name(name: str) -> tuple[str, str, str]:
-    # Supports:
-    # - product_z500_t+024.png
-    # - product_diff_z500_t+024.png
-    # - product_vector_uv10_t+024.png
-    # - product_msl_wind_t+024.png
-    m = re.match(r"^product_(?:(diff|vector|msl_wind)_)?([a-z0-9_]+)_t\+(\d{3})\.png$", name)
-    if not m:
-        return ("other", "other", "other")
-    kind = m.group(1) or "fill"
-    var = m.group(2)
-    lead = m.group(3)
-    return (kind, var, lead)
 
 
 st.title("Plots")
@@ -53,7 +38,7 @@ if product_pngs:
     if not product_only:
         st.write(product_pngs[:50])
     else:
-        parsed = [(_parse_product_name(Path(p).name), p) for p in product_only]
+        parsed = [(parse_product_name(Path(p).name), p) for p in product_only]
         kinds = sorted({k for (k, _v, _h), _p in parsed})
         vars_ = sorted({v for (_k, v, _h), _p in parsed})
         leads = sorted({h for (_k, _v, h), _p in parsed})
