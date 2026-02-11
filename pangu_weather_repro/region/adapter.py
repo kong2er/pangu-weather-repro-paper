@@ -54,3 +54,27 @@ class GlobalGridCropAdapter(RegionDatasetAdapter):
         pressure = self.pressure[..., lat_slice, lon_slice]
         surface = self.surface[..., lat_slice, lon_slice]
         return pressure, surface
+
+
+@dataclass
+class PaddedRegionAdapter(RegionDatasetAdapter):
+    """Pad a region back to a full global grid with a fill value.
+
+    This is a utility adapter for plugging region data into full-grid models.
+    Note: fill_value should be chosen carefully for your application.
+    """
+
+    region_pressure: np.ndarray
+    region_surface: np.ndarray
+    global_shape_pressure: Tuple[int, int, int, int]
+    global_shape_surface: Tuple[int, int, int]
+    lat_slice: slice
+    lon_slice: slice
+    fill_value: float = 0.0
+
+    def to_model_inputs(self) -> Tuple[np.ndarray, np.ndarray]:
+        pressure = np.full(self.global_shape_pressure, self.fill_value, dtype=np.float32)
+        surface = np.full(self.global_shape_surface, self.fill_value, dtype=np.float32)
+        pressure[..., self.lat_slice, self.lon_slice] = self.region_pressure
+        surface[..., self.lat_slice, self.lon_slice] = self.region_surface
+        return pressure, surface

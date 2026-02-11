@@ -108,6 +108,10 @@ scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_r
 ```bash
 scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123
 ```
+若需要回填到全局网格（用于模型输入形状对齐）：
+```bash
+scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123 --pad-to-global --fill-value 0.0
+```
 
 ## Troubleshooting（常见错误 → 命令）
 - CPU venv 缺失：`scripts/create_cpu_venv.sh`

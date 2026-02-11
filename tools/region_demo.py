@@ -9,7 +9,7 @@ from datetime import datetime
 
 import numpy as np
 
-from pangu_weather_repro.region.adapter import GlobalGridCropAdapter
+from pangu_weather_repro.region.adapter import GlobalGridCropAdapter, PaddedRegionAdapter
 
 
 def main() -> None:
@@ -20,6 +20,8 @@ def main() -> None:
     p.add_argument("--lat-max", type=float, default=35.0)
     p.add_argument("--lon-min", type=float, default=118.0)
     p.add_argument("--lon-max", type=float, default=123.0)
+    p.add_argument("--pad-to-global", action="store_true")
+    p.add_argument("--fill-value", type=float, default=0.0)
     p.add_argument("--force", action="store_true")
     args = p.parse_args()
 
@@ -48,6 +50,21 @@ def main() -> None:
     np.save(os.path.join(args.out_dir, "region_pressure.npy"), region_pressure)
     np.save(os.path.join(args.out_dir, "region_surface.npy"), region_surface)
 
+    if args.pad_to_global:
+        lat_slice, lon_slice = adapter._slice_indices()
+        padder = PaddedRegionAdapter(
+            region_pressure=region_pressure,
+            region_surface=region_surface,
+            global_shape_pressure=pressure.shape,
+            global_shape_surface=surface.shape,
+            lat_slice=lat_slice,
+            lon_slice=lon_slice,
+            fill_value=args.fill_value,
+        )
+        global_pressure, global_surface = padder.to_model_inputs()
+        np.save(os.path.join(args.out_dir, "global_pressure.npy"), global_pressure)
+        np.save(os.path.join(args.out_dir, "global_surface.npy"), global_surface)
+
     meta = {
         "lat_min": args.lat_min,
         "lat_max": args.lat_max,
@@ -57,6 +74,8 @@ def main() -> None:
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "pressure_shape": list(region_pressure.shape),
         "surface_shape": list(region_surface.shape),
+        "pad_to_global": args.pad_to_global,
+        "fill_value": args.fill_value,
     }
     with open(os.path.join(args.out_dir, "region_meta.json"), "w") as f:
         json.dump(meta, f, indent=2)

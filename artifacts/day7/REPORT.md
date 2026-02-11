@@ -30,7 +30,7 @@
 - 已实现短/长程调度（1–84h / 84–360h）与统一 runner
 - tools/run_forecast.py 支持 1/3/6/24h 模型选择
 - 论文图包输出（带元数据 JSON，支持 vmin/vmax/cmap 与地图渲染回退）
-- RegionDatasetAdapter + region demo 裁剪
+- RegionDatasetAdapter + region demo 裁剪（支持回填全局网格）
 
 ## Day3/4/5 核查记录（中文）
 - Day3（GPU Smoke）：通过，输出 `outputs/smoke_24h_report.json`

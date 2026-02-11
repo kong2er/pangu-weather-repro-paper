@@ -1,4 +1,4 @@
 """Region data adapter interface."""
-from .adapter import GlobalGridCropAdapter, RegionDatasetAdapter
+from .adapter import GlobalGridCropAdapter, PaddedRegionAdapter, RegionDatasetAdapter
 
-__all__ = ["RegionDatasetAdapter", "GlobalGridCropAdapter"]
+__all__ = ["RegionDatasetAdapter", "GlobalGridCropAdapter", "PaddedRegionAdapter"]

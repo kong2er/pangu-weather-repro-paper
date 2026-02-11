@@ -95,6 +95,10 @@ scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_r
 ```bash
 scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123
 ```
+需要回填到全局网格（对齐模型输入形状）：
+```bash
+scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123 --pad-to-global --fill-value 0.0
+```
 
 ## 9. Day7 metrics（可选）
 ```bash
