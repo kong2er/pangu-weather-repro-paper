@@ -29,6 +29,7 @@ STYLE_PRESETS: dict[str, dict[str, Any]] = {
             "t2m": {"cmap": "coolwarm", "vmin": 220.0, "vmax": 320.0},
             "u10": {"cmap": "viridis", "vmin": -30.0, "vmax": 30.0},
             "v10": {"cmap": "viridis", "vmin": -30.0, "vmax": 30.0},
+            "wind_speed": {"cmap": "viridis", "vmin": 0.0, "vmax": 35.0},
             "msl": {"cmap": "coolwarm", "vmin": 95000.0, "vmax": 105000.0},
         },
         "diff_defaults": {
@@ -437,6 +438,46 @@ def draw_wind_vector(
     with open(out_json, "w") as f:
         json.dump(meta, f, indent=2)
     return out_png, out_json
+
+
+def draw_wind_speed(
+    u: np.ndarray,
+    v: np.ndarray,
+    out_png: str | Path,
+    *,
+    out_json: str | Path | None = None,
+    lead_hour: int = 0,
+    title: str = "",
+    dpi: int = 220,
+    style_profile: str = "standard",
+    with_geo: bool = False,
+    geo_assets_dir: str | None = None,
+    extent: tuple[float, float, float, float] | None = None,
+    force: bool = False,
+    extra_meta: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Draw uv10 wind speed filled map and write metadata json."""
+    u = np.asarray(u, dtype=np.float32)
+    v = np.asarray(v, dtype=np.float32)
+    if u.shape != v.shape or u.ndim != 2:
+        raise ValueError(f"draw_wind_speed expects two 2D arrays with same shape, got {u.shape} vs {v.shape}")
+    speed = np.sqrt(u * u + v * v)
+    return draw_global_fill(
+        speed,
+        out_png,
+        out_json=out_json,
+        var="wind_speed",
+        lead_hour=lead_hour,
+        units="m s^-1",
+        title=title or f"wind speed t+{lead_hour:03d}",
+        dpi=dpi,
+        style_profile=style_profile,
+        with_geo=with_geo,
+        geo_assets_dir=geo_assets_dir,
+        extent=extent,
+        force=force,
+        extra_meta=extra_meta,
+    )
 
 
 def draw_msl_wind(

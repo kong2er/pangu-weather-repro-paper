@@ -19,6 +19,7 @@ from pangu_weather_repro.visualization.product_draw import (
     draw_diff_fill,
     draw_global_fill,
     draw_msl_wind,
+    draw_wind_speed,
     draw_wind_vector,
 )
 
@@ -155,7 +156,7 @@ def main() -> None:
     p.add_argument(
         "--kinds",
         default="fill",
-        help="Comma list from: fill,diff,vector,msl_wind (diff supports z500; vector/msl_wind support uv10).",
+        help="Comma list from: fill,diff,vector,wind_speed,msl_wind (diff supports z500; vector/wind_speed/msl_wind support uv10).",
     )
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
@@ -291,6 +292,36 @@ def main() -> None:
                 out_png = out_dir / f"product_vector_uv10_t+{lead:03d}.png"
                 before = out_png.exists()
                 png, meta_json = draw_wind_vector(
+                    u10,
+                    v10,
+                    out_png,
+                    lead_hour=lead,
+                    style_profile=args.style_profile,
+                    with_geo=args.with_geo,
+                    geo_assets_dir=args.geo_assets_dir,
+                    extent=extent,
+                    force=args.force,
+                    extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
+                )
+                if before and not args.force:
+                    skipped += 1
+                else:
+                    generated += 1
+                print(f"[FILE] {png}")
+                print(f"[META] {meta_json}")
+
+            if "wind_speed" in kinds:
+                if var != "u10":
+                    continue
+                try:
+                    u10, v10 = _load_uv10_by_lead(rollout_dir, lead)
+                except Exception as exc:
+                    print(f"[WARN] cannot load uv10 for wind_speed lead={lead}: {exc}")
+                    skipped += 1
+                    continue
+                out_png = out_dir / f"product_wind_speed_t+{lead:03d}.png"
+                before = out_png.exists()
+                png, meta_json = draw_wind_speed(
                     u10,
                     v10,
                     out_png,
