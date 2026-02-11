@@ -24,7 +24,7 @@
   `bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force`
 - geo fallback cmd:
   `scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force`
-- product outputs: png=13, json=13
+- product outputs: png=17, json=17
 
 中文说明：
 - E阶段默认不覆盖产物，需覆盖请显式加 `--force`
