@@ -164,3 +164,16 @@ https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-i
 
 ## Full Run（可选，Day1–Day8）
 完整流程与排错细节见 `RUNBOOK.md`。
+
+## 收官验收清单（建议逐条勾选）
+1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
+2. GPU 最小链路通过：`scripts/regression_minimal.sh`
+3. 360h 分段推理通过：`scripts/run_360h_split.sh --auto-retry`
+4. 论文图输出生成：`figures/paper/*.png` + `figures/paper/*.json`
+5. Region 适配 demo 通过：`tools/region_demo.py` 产物存在
+6. 报告已更新：`artifacts/day7/REPORT.md`
+
+## 交付注意事项（重要）
+1. 默认不覆盖产物，需覆盖请显式加 `--force`
+2. 不提交 `.venv-*`（已在 `.gitignore`）
+3. 模型下载建议优先用 `scripts/01_download_models.sh --source gdrive`

@@ -134,3 +134,11 @@ https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-i
 - matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
 - 缺 rmse.csv / png：`scripts/regression_minimal.sh`
  - 需要覆盖产物：对应脚本加 `--force`
+
+## 11. 收官验收（建议顺序）
+1. CPU smoke：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
+2. GPU 最小链路：`scripts/regression_minimal.sh`
+3. 360h 分段：`scripts/run_360h_split.sh --auto-retry`
+4. 论文图包：`tools/plot_paper_bundle.py` 生成 `figures/paper/*.png`
+5. Region demo：`tools/region_demo.py` 生成 `outputs/region_demo/*`
+6. 报告更新：`artifacts/day7/REPORT.md`
