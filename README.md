@@ -77,6 +77,7 @@ scripts/run_day6_plots.sh
 - 1–84h 逐小时：`tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 84`
 - 84–360h 迭代：`tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360`
 - 仅计划不跑：`tools/run_forecast.py --strategy pangu_ref --dry-run --mode full --target-hours 360`
+- `kong2er_ref`：与 `pangu_ref` 等价（为蓝本对齐保留显式命名）
 
 示例（GPU 环境）：
 ```bash

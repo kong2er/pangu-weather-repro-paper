@@ -7,7 +7,9 @@ Example:
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import time
 from typing import List
 
 from pangu_weather_repro.infer.runner import ForecastRunner
@@ -51,7 +53,7 @@ def main() -> None:
     p.add_argument("--out-dir", default="")
     p.add_argument("--target-hours", type=int, default=30)
     p.add_argument("--mode", choices=["short", "long", "full", "split"], default="short")
-    p.add_argument("--strategy", choices=["default", "pangu_ref"], default="default")
+    p.add_argument("--strategy", choices=["default", "pangu_ref", "kong2er_ref"], default="default")
     p.add_argument("--short-step", type=int, default=1)
     p.add_argument("--long-step", type=int, default=24)
     p.add_argument("--save-hours", default="1,3,6,24,84,120,168,240,360")
@@ -70,6 +72,8 @@ def main() -> None:
     output_root = os.environ.get("OUTPUT_ROOT", "outputs")
     out_dir = args.resume_from or args.out_dir or os.path.join(output_root, f"forecast_{args.target_hours}h")
 
+    normalized_strategy = "pangu_ref" if args.strategy == "kong2er_ref" else args.strategy
+
     if args.mode == "split":
         if args.target_hours <= 84:
             raise SystemExit("split mode requires target_hours > 84")
@@ -81,7 +85,7 @@ def main() -> None:
             short_step=args.short_step,
             long_step=args.long_step,
             mode=args.mode,
-            strategy=args.strategy,
+            strategy=normalized_strategy,
         )
 
     print("[forecast] mode:", args.mode)
@@ -103,7 +107,7 @@ def main() -> None:
                 short_step=args.short_step,
                 long_step=args.long_step,
                 mode="short",
-                strategy=args.strategy,
+                strategy=normalized_strategy,
             )
             long_sched = build_schedule(
                 target_hours=args.target_hours - 84,
@@ -111,7 +115,7 @@ def main() -> None:
                 short_step=args.short_step,
                 long_step=args.long_step,
                 mode="long",
-                strategy=args.strategy,
+                strategy=normalized_strategy,
             )
             print("[forecast] split short steps:", short_sched.steps)
             print("[forecast] split long steps:", long_sched.steps)
@@ -126,7 +130,7 @@ def main() -> None:
             short_step=args.short_step,
             long_step=args.long_step,
             mode="short",
-            strategy=args.strategy,
+            strategy=normalized_strategy,
         )
         long_sched = build_schedule(
             target_hours=args.target_hours - 84,
@@ -134,7 +138,7 @@ def main() -> None:
             short_step=args.short_step,
             long_step=args.long_step,
             mode="long",
-            strategy=args.strategy,
+            strategy=normalized_strategy,
         )
         if args.resume_from:
             out_dir_short = out_dir + "_84h"
@@ -186,6 +190,7 @@ def main() -> None:
     )
 
     try:
+        run_started = time.time()
         if args.mode == "split":
             out_dir_short = out_dir + "_84h"
             out_dir_long = out_dir + "_276h"
@@ -225,6 +230,34 @@ def main() -> None:
                 init_from_hour=84,
             )
             print("[forecast] report long:", result_long.report_path)
+            final_summary = {
+                "strategy": args.strategy,
+                "strategy_effective": normalized_strategy,
+                "mode": args.mode,
+                "split": True,
+                "resume_enabled": bool(args.resume_from),
+                "target_hours": args.target_hours,
+                "threads": args.threads,
+                "gpu_mem_limit_mb": args.gpu_mem_limit_mb,
+                "providers": result_long.steps and runner._providers() or [],
+                "segments": [
+                    {
+                        "name": "short_84h",
+                        "out_dir": out_dir_short,
+                        "report_path": os.path.join(out_dir_short, "forecast_report.json"),
+                    },
+                    {
+                        "name": "long_276h",
+                        "out_dir": out_dir_long,
+                        "report_path": result_long.report_path,
+                    },
+                ],
+                "elapsed_sec": round(time.time() - run_started, 3),
+            }
+            os.makedirs(out_dir, exist_ok=True)
+            with open(os.path.join(out_dir, "forecast_report.json"), "w") as f:
+                json.dump(final_summary, f, indent=2)
+            print("[forecast] report:", os.path.join(out_dir, "forecast_report.json"))
         else:
             resume_hour = _load_resume_hour(out_dir) if args.resume_from else 0
             result = runner.run_schedule(
@@ -237,6 +270,23 @@ def main() -> None:
                 resume_from_hour=resume_hour if resume_hour > 0 else None,
             )
             print("[forecast] report:", result.report_path)
+            final_summary = {
+                "strategy": args.strategy,
+                "strategy_effective": normalized_strategy,
+                "mode": args.mode,
+                "split": False,
+                "resume_enabled": bool(args.resume_from),
+                "target_hours": args.target_hours,
+                "threads": args.threads,
+                "gpu_mem_limit_mb": args.gpu_mem_limit_mb,
+                "steps": result.steps,
+                "out_dir": result.out_dir,
+                "segment_report_path": result.report_path,
+                "elapsed_sec": round(time.time() - run_started, 3),
+            }
+            with open(os.path.join(out_dir, "forecast_report.json"), "w") as f:
+                json.dump(final_summary, f, indent=2)
+            print("[forecast] summary:", os.path.join(out_dir, "forecast_report.json"))
     except Exception as exc:
         msg = str(exc)
         if "out_dir exists" in msg:

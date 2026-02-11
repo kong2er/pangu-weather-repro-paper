@@ -70,6 +70,7 @@ scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --sho
 scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 84
 scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
 ```
+说明：`--strategy kong2er_ref` 与 `--strategy pangu_ref` 等价，用于显式标记蓝本对齐策略。
 如遇显存不足（OOM），可加：`--noarena` 或 `--gpu-mem-limit-mb 4096`。
 推荐 360h 稳定跑法（分段）：
 ```bash

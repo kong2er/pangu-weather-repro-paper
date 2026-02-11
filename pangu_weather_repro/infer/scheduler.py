@@ -45,8 +45,11 @@ def build_schedule(
 
     steps: List[int] = []
     avail = available_steps or [24, 6, 3, 1]
-    if strategy not in {"default", "pangu_ref"}:
-        raise ValueError("strategy must be one of: default|pangu_ref")
+    if strategy not in {"default", "pangu_ref", "kong2er_ref"}:
+        raise ValueError("strategy must be one of: default|pangu_ref|kong2er_ref")
+    # Keep backward compatibility: kong2er_ref equals pangu_ref schedule policy.
+    if strategy == "kong2er_ref":
+        strategy = "pangu_ref"
     if mode in {"short", "full"}:
         short_target = min(target_hours, short_until)
         if short_step in avail:
