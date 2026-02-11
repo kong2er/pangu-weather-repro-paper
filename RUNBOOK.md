@@ -83,6 +83,10 @@ scripts/run_360h_split.sh --gpu-mem-limit-mb 4096
 ```bash
 scripts/run_360h_split.sh --resume-from /root/autodl-tmp/pangu-weather-repro/outputs/forecast_360h_split_YYYYMMDD_HHMMSS
 ```
+自动重试（逐步降低显存上限）：
+```bash
+scripts/run_360h_split.sh --auto-retry
+```
 
 ## 7. 论文级图输出
 ```bash

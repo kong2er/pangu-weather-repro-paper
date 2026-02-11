@@ -253,6 +253,7 @@ def main() -> None:
             print("  - add --no-cache-sessions (avoid GPU mem accumulation)")
             print("  - use --mode split (run 84h then 276h)")
             print("  - use --resume-from <out_dir> to continue after crash")
+            print("  - use scripts/run_360h_split.sh --auto-retry")
             print("  - reduce target hours or use --mode short with fewer steps")
         raise
 

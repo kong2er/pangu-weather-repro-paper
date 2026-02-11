@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/run_360h_full.sh [--out-dir PATH] [--gpu-mem-limit-mb N] [--resume-from DIR] [--force]"
+  echo "Usage: scripts/run_360h_full.sh [--out-dir PATH] [--gpu-mem-limit-mb N] [--resume-from DIR] [--auto-retry] [--mem-series LIST] [--force]"
   echo "Purpose: run 360h forecast (split mode) with pangu_ref strategy."
   echo "Default: no overwrite, auto timestamp output dir."
   exit 0
@@ -16,6 +16,8 @@ OUT_DIR=""
 MEM_LIMIT=""
 FORCE_FLAG=""
 RESUME_FROM=""
+AUTO_RETRY=""
+MEM_SERIES=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +36,14 @@ while [[ $# -gt 0 ]]; do
     --force)
       FORCE_FLAG="--force"
       shift 1
+      ;;
+    --auto-retry)
+      AUTO_RETRY="1"
+      shift 1
+      ;;
+    --mem-series)
+      MEM_SERIES="$2"
+      shift 2
       ;;
     *)
       echo "Unknown arg: $1"
@@ -66,12 +76,30 @@ if [[ -n "${RESUME_FROM}" ]]; then
   ARGS+=("--resume-from" "${RESUME_FROM}")
 fi
 
-if [[ -n "${MEM_LIMIT}" ]]; then
-  ARGS+=("--gpu-mem-limit-mb" "${MEM_LIMIT}")
-fi
-
 if [[ -n "${FORCE_FLAG}" ]]; then
   ARGS+=("${FORCE_FLAG}")
 fi
 
-"${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/tools/run_forecast.py" "${ARGS[@]}"
+if [[ -n "${AUTO_RETRY}" ]]; then
+  SERIES="${MEM_SERIES:-12288,8192,4096,3072}"
+  IFS=',' read -r -a LIMITS <<< "${SERIES}"
+  echo "[RETRY] enabled, mem-series=${SERIES}"
+  for LIM in "${LIMITS[@]}"; do
+    echo "[RETRY] try gpu-mem-limit-mb=${LIM}"
+    set +e
+    "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/tools/run_forecast.py" "${ARGS[@]}" --gpu-mem-limit-mb "${LIM}"
+    CODE=$?
+    set -e
+    if [[ "${CODE}" -eq 0 ]]; then
+      echo "[RETRY] success at gpu-mem-limit-mb=${LIM}"
+      exit 0
+    fi
+  done
+  echo "[RETRY] all attempts failed. Resume with: scripts/run_360h_split.sh --resume-from ${OUT_DIR}"
+  exit 2
+else
+  if [[ -n "${MEM_LIMIT}" ]]; then
+    ARGS+=("--gpu-mem-limit-mb" "${MEM_LIMIT}")
+  fi
+  "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/tools/run_forecast.py" "${ARGS[@]}"
+fi
