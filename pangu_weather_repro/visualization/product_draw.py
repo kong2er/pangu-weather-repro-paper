@@ -20,6 +20,23 @@ from pangu_weather_repro.visualization.geo import (
     try_import_cartopy,
 )
 
+# 产品图默认样式（G1）：优先保证可复现一致性。
+# 若调用方显式传 vmin/vmax/cmap，则以调用方为准。
+STYLE_PRESETS: dict[str, dict[str, Any]] = {
+    "standard": {
+        "fill_defaults": {
+            "z500": {"cmap": "turbo", "vmin": 47000.0, "vmax": 59000.0},
+            "t2m": {"cmap": "coolwarm", "vmin": 220.0, "vmax": 320.0},
+            "u10": {"cmap": "viridis", "vmin": -30.0, "vmax": 30.0},
+            "v10": {"cmap": "viridis", "vmin": -30.0, "vmax": 30.0},
+            "msl": {"cmap": "coolwarm", "vmin": 95000.0, "vmax": 105000.0},
+        },
+        "diff_defaults": {
+            "z500": {"cmap": "RdBu_r", "vlim": 300.0},
+        },
+    }
+}
+
 
 def _auto_range(data: np.ndarray, vmin: float | None, vmax: float | None) -> tuple[float, float]:
     if vmin is not None and vmax is not None:
@@ -36,6 +53,55 @@ def _normalize_extent(extent: tuple[float, float, float, float] | None) -> tuple
     return tuple(float(x) for x in extent)
 
 
+def _resolve_fill_style(
+    data: np.ndarray,
+    var: str,
+    *,
+    style_profile: str,
+    cmap: str | None,
+    vmin: float | None,
+    vmax: float | None,
+) -> tuple[str, float, float, str]:
+    profile = STYLE_PRESETS.get(style_profile, STYLE_PRESETS["standard"])
+    defaults = profile.get("fill_defaults", {}).get(var, {})
+    cmap_use = str(cmap if cmap is not None else defaults.get("cmap", "turbo"))
+    vmin_default = defaults.get("vmin")
+    vmax_default = defaults.get("vmax")
+
+    if vmin is not None and vmax is not None:
+        return cmap_use, float(vmin), float(vmax), "explicit"
+    if vmin_default is not None and vmax_default is not None and vmin is None and vmax is None:
+        return cmap_use, float(vmin_default), float(vmax_default), "style_default"
+
+    # mixed / fallback case
+    p1, p99 = np.percentile(np.asarray(data), [1, 99])
+    vmin_use = float(p1) if vmin is None else float(vmin)
+    vmax_use = float(p99) if vmax is None else float(vmax)
+    return cmap_use, vmin_use, vmax_use, "percentile"
+
+
+def _resolve_diff_style(
+    var: str,
+    *,
+    style_profile: str,
+    cmap: str | None,
+    vlim: float | None,
+    diff: np.ndarray,
+) -> tuple[str, float, float, str]:
+    profile = STYLE_PRESETS.get(style_profile, STYLE_PRESETS["standard"])
+    defaults = profile.get("diff_defaults", {}).get(var, {})
+    cmap_use = str(cmap if cmap is not None else defaults.get("cmap", "RdBu_r"))
+    if vlim is not None:
+        vmax = float(vlim)
+        return cmap_use, -vmax, vmax, "explicit"
+    if defaults.get("vlim") is not None:
+        vmax = float(defaults["vlim"])
+        return cmap_use, -vmax, vmax, "style_default"
+    vmax = float(np.nanpercentile(np.abs(diff), 99))
+    vmax = max(vmax, 1e-6)
+    return cmap_use, -vmax, vmax, "percentile"
+
+
 def draw_global_fill(
     data: np.ndarray,
     out_png: str | Path,
@@ -49,6 +115,7 @@ def draw_global_fill(
     vmin: float | None = None,
     vmax: float | None = None,
     dpi: int = 220,
+    style_profile: str = "standard",
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
     extent: tuple[float, float, float, float] | None = None,
@@ -78,7 +145,14 @@ def draw_global_fill(
     geo_requested = bool(with_geo)
     geo_ok = geo_requested and ccrs is not None
     geo_error = ""
-    vmin_use, vmax_use = _auto_range(data, vmin, vmax)
+    cmap_use, vmin_use, vmax_use, range_source = _resolve_fill_style(
+        data,
+        var,
+        style_profile=style_profile,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+    )
     extent = _normalize_extent(extent)
 
     if geo_ok:
@@ -93,7 +167,7 @@ def draw_global_fill(
                 data,
                 extent=extent,
                 origin="upper",
-                cmap=cmap,
+                cmap=cmap_use,
                 vmin=vmin_use,
                 vmax=vmax_use,
                 transform=ccrs.PlateCarree(),
@@ -103,12 +177,12 @@ def draw_global_fill(
             geo_ok = False
             geo_error = str(exc)
             fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
-            im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap, vmin=vmin_use, vmax=vmax_use)
+            im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap_use, vmin=vmin_use, vmax=vmax_use)
             ax.set_xlabel("lon")
             ax.set_ylabel("lat")
     else:
         fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
-        im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap, vmin=vmin_use, vmax=vmax_use)
+        im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap_use, vmin=vmin_use, vmax=vmax_use)
         ax.set_xlabel("lon")
         ax.set_ylabel("lat")
 
@@ -129,10 +203,12 @@ def draw_global_fill(
         "lead_hour": int(lead_hour),
         "units": units,
         "title": t,
-        "cmap": cmap,
+        "cmap": cmap_use,
         "vmin": float(vmin_use),
         "vmax": float(vmax_use),
+        "range_source": range_source,
         "dpi": int(dpi),
+        "style_profile": style_profile,
         "with_geo_requested": geo_requested,
         "with_geo": bool(geo_ok),
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
@@ -163,6 +239,7 @@ def draw_diff_fill(
     vlim: float | None = None,
     extent: tuple[float, float, float, float] | None = None,
     dpi: int = 220,
+    style_profile: str = "standard",
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
@@ -181,13 +258,17 @@ def draw_diff_fill(
         raise ValueError(f"draw_diff_fill expects two 2D arrays with same shape, got {pred.shape} vs {ref.shape}")
 
     diff = pred - ref
-    vmax = float(np.nanpercentile(np.abs(diff), 99)) if vlim is None else float(vlim)
-    vmax = max(vmax, 1e-6)
-    vmin = -vmax
+    cmap_use, vmin, vmax, range_source = _resolve_diff_style(
+        var,
+        style_profile=style_profile,
+        cmap=cmap,
+        vlim=vlim,
+        diff=diff,
+    )
 
     extent = _normalize_extent(extent)
     fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
-    im = ax.imshow(diff, extent=extent, origin="upper", cmap=cmap, vmin=vmin, vmax=vmax)
+    im = ax.imshow(diff, extent=extent, origin="upper", cmap=cmap_use, vmin=vmin, vmax=vmax)
     ax.set_xlabel("lon")
     ax.set_ylabel("lat")
     t = title or f"{var} pred-ref t+{lead_hour:03d}"
@@ -207,11 +288,13 @@ def draw_diff_fill(
         "lead_hour": int(lead_hour),
         "units": units,
         "title": t,
-        "cmap": cmap,
+        "cmap": cmap_use,
         "vmin": vmin,
         "vmax": vmax,
+        "range_source": range_source,
         "extent": list(extent),
         "dpi": int(dpi),
+        "style_profile": style_profile,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
     if extra_meta:
@@ -231,6 +314,7 @@ def draw_wind_vector(
     lead_hour: int = 0,
     title: str = "",
     dpi: int = 220,
+    style_profile: str = "standard",
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
     extent: tuple[float, float, float, float] | None = None,
@@ -336,6 +420,7 @@ def draw_wind_vector(
         "title": t,
         "dpi": int(dpi),
         "stride": int(stride),
+        "style_profile": style_profile,
         "with_geo_requested": geo_requested,
         "with_geo": bool(geo_ok),
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
@@ -364,6 +449,7 @@ def draw_msl_wind(
     lead_hour: int = 0,
     title: str = "",
     dpi: int = 220,
+    style_profile: str = "standard",
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
     extent: tuple[float, float, float, float] | None = None,
@@ -473,6 +559,7 @@ def draw_msl_wind(
         "title": t,
         "dpi": int(dpi),
         "stride": int(stride),
+        "style_profile": style_profile,
         "msl_vmin": vmin,
         "msl_vmax": vmax,
         "with_geo_requested": geo_requested,

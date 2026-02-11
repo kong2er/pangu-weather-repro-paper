@@ -159,6 +159,7 @@ def main() -> None:
     )
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
+    p.add_argument("--style-profile", default="standard", help="Style profile for product figures (default: standard).")
     p.add_argument(
         "--extent",
         default="",
@@ -198,6 +199,7 @@ def main() -> None:
         print(f"[GEO] enabled, assets={args.geo_assets_dir}")
     else:
         print("[GEO] disabled")
+    print(f"[STYLE] {args.style_profile}")
     if extent is not None:
         print(f"[EXTENT] {extent}")
 
@@ -232,6 +234,7 @@ def main() -> None:
                     units=UNITS_MAP.get(var, ""),
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
+                    style_profile=args.style_profile,
                     extent=extent,
                     force=args.force,
                     extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
@@ -263,6 +266,7 @@ def main() -> None:
                     var=var,
                     lead_hour=lead,
                     units=UNITS_MAP.get(var, ""),
+                    style_profile=args.style_profile,
                     extent=extent,
                     force=args.force,
                     extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
@@ -291,6 +295,7 @@ def main() -> None:
                     v10,
                     out_png,
                     lead_hour=lead,
+                    style_profile=args.style_profile,
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
                     extent=extent,
@@ -322,6 +327,7 @@ def main() -> None:
                     v10,
                     out_png,
                     lead_hour=lead,
+                    style_profile=args.style_profile,
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
                     extent=extent,
