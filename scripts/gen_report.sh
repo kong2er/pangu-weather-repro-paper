@@ -16,8 +16,11 @@ mkdir -p "${REPORT_DIR}"
 PY_PATH="$("${ROOT_DIR}/scripts/run_gpu.sh" -c "import sys; print(sys.executable)")"
 ORT_PROVIDERS="$("${ROOT_DIR}/scripts/run_gpu.sh" -c "import onnxruntime as ort; print(ort.get_available_providers())")"
 
+PRODUCT_PNG_COUNT="$(find "${ROOT_DIR}/figures/product" -maxdepth 1 -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"
+PRODUCT_JSON_COUNT="$(find "${ROOT_DIR}/figures/product" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+
 cat > "${REPORT_PATH}" <<EOF
-# REPORT (Day3->Day6 Minimal Chain)
+# REPORT (A-D Stable Chain + E Alignment)
 
 ## Environment
 - python: ${PY_PATH}
@@ -34,6 +37,20 @@ cat > "${REPORT_PATH}" <<EOF
 - figures/day6/field_z500_2023070900_t+024.png
 - figures/day6/field_z500_2023070900_t+030.png
 - figures/day6/rmse_z500_2023070900.png
+
+## E Stage (Product / Streamlit / Geo)
+- streamlit entry: pangu_weather_repro/app/app.py
+- product bundle cmd:
+  \`bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30\`
+- product diff cmd (z500):
+  \`bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force\`
+- geo fallback cmd:
+  \`scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force\`
+- product outputs: png=${PRODUCT_PNG_COUNT}, json=${PRODUCT_JSON_COUNT}
+
+中文说明：
+- E阶段默认不覆盖产物，需覆盖请显式加 \`--force\`
+- 缺 cartopy/scipy 或缺地理资源时，产品图会自动回退为普通绘图，不中断流程
 
 ## Covered Pitfalls
 - PYTHONPATH missing in run_smoke_gpu_noarena
@@ -55,9 +72,15 @@ cat > "${REPORT_PATH}" <<EOF
 - tools/eval_rmse.py
 - tools/plot_fields.py
 - tools/plot_rmse_curve.py
+- tools/plot_product_bundle.py
+- scripts/run_product_bundle.sh
+- scripts/run_e_stage_verify.sh
+- pangu_weather_repro/visualization/product_draw.py
+- pangu_weather_repro/visualization/geo.py
 - tests/test_plot_fields_validation.py
 - .github/workflows/ci.yml
 - README.md
+- RUNBOOK.md
 EOF
 
 echo "Wrote ${REPORT_PATH}"
