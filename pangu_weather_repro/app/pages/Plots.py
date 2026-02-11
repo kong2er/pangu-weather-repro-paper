@@ -90,6 +90,21 @@ if product_pngs:
         if preview_rows:
             st.caption("元数据预览（前 20 个）")
             st.dataframe(preview_rows, use_container_width=True)
+
+        # 根据当前筛选条件给出可复制的 CLI 模板，降低复现门槛。
+        cmd_kinds = [kind_sel] if kind_sel != "all" else []
+        cmd_vars = [var_sel] if var_sel != "all" else []
+        cmd_hours = [lead_sel] if lead_sel != "all" else []
+        kind_arg = ",".join(cmd_kinds) if cmd_kinds else "fill,diff,vector,wind_speed,msl_wind"
+        var_arg = ",".join(cmd_vars) if cmd_vars else "z500,t2m,u10,v10,msl"
+        hour_arg = ",".join(cmd_hours) if cmd_hours else "24,30"
+        cmd = (
+            'bash scripts/run_product_bundle.sh '
+            '--rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" '
+            f'--vars {var_arg} --hours {hour_arg} --kinds {kind_arg} --force'
+        )
+        st.caption("可复制命令（按当前筛选生成）")
+        st.code(cmd, language="bash")
 else:
     st.info("figures/product 为空。")
 
