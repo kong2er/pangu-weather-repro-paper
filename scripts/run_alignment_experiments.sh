@@ -46,20 +46,20 @@ mkdir -p "$(dirname "${OUT_FILE}")"
   echo ""
   echo "## 1/3/6/24h 单步推理验证（short mode）"
   echo '```bash'
-  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 24'
-  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 3 --target-hours 24'
-  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 6 --target-hours 24'
-  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 24 --target-hours 24'
+  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy kong2er_ref --mode short --short-step 1 --target-hours 24'
+  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy kong2er_ref --mode short --short-step 3 --target-hours 24'
+  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy kong2er_ref --mode short --short-step 6 --target-hours 24'
+  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy kong2er_ref --mode short --short-step 24 --target-hours 24'
   echo '```'
   echo ""
   echo "## 1–84h 逐小时（short mode）"
   echo '```bash'
-  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 84'
+  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy kong2er_ref --mode short --short-step 1 --target-hours 84'
   echo '```'
   echo ""
   echo "## 84–360h 迭代（dry-run 计划）"
   echo '```bash'
-  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run'
+  echo 'scripts/run_gpu.sh tools/run_forecast.py --strategy kong2er_ref --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run'
   echo '```'
   echo ""
   echo "## 稳定跑法（推荐）"
