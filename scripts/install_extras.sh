@@ -41,13 +41,13 @@ PY
   plots)
     if [[ "${FORCE}" != "--force" ]]; then
       if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
-import matplotlib, cartopy
+import matplotlib, cartopy, scipy
 PY
         echo "extras already present (plots). Use --force to reinstall."
         exit 0
       fi
     fi
-    ${PIP} install -U matplotlib cartopy
+    ${PIP} install -U matplotlib cartopy scipy
     ;;
   download)
     if [[ "${FORCE}" != "--force" ]]; then
@@ -74,13 +74,13 @@ PY
   all)
     if [[ "${FORCE}" != "--force" ]]; then
       if "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1; then
-import netCDF4, cftime, matplotlib, cartopy, cdsapi, requests, tqdm, yaml, gdown, streamlit
+        import netCDF4, cftime, matplotlib, cartopy, scipy, cdsapi, requests, tqdm, yaml, gdown, streamlit
 PY
         echo "extras already present (all). Use --force to reinstall."
         exit 0
       fi
     fi
-    ${PIP} install -U netCDF4 cftime matplotlib cartopy cdsapi requests tqdm pyyaml gdown streamlit
+    ${PIP} install -U netCDF4 cftime matplotlib cartopy scipy cdsapi requests tqdm pyyaml gdown streamlit
     ;;
   *)
     echo "Unknown mode: ${MODE}"

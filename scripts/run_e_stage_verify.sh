@@ -136,6 +136,7 @@ bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h
 
 ## Next
 - 如果 product_bundle_check=failed：先执行 \`bash scripts/install_extras.sh plots\`，再重试本脚本
+- 如果 product_vector_check=failed 或 product_msl_wind_check=failed：先执行 \`bash scripts/install_extras.sh plots --force\`，再重试本脚本
 - 如果 rollout 缺失：先完成 Day4 产物，再运行本脚本
 EOF
 

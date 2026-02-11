@@ -190,3 +190,7 @@ scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4
 说明：
 - 若 `cartopy/scipy` 或地理资源不完整，系统会自动回退到普通绘图，且在 JSON 记录 `geo_error`
 - 资源目录说明：`assets/geo/README.md`
+- 若要尽量避免 geo 回退，建议安装：
+```bash
+bash scripts/install_extras.sh plots --force
+```

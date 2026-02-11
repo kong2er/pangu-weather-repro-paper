@@ -211,6 +211,10 @@ scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4
 ```
 - 无 `cartopy/scipy` 或无地理资源时会自动回退到普通绘图，不会中断流程
 - 地理资源放置说明见：`assets/geo/README.md`
+- 建议安装绘图扩展（含 `scipy`，提升地理绘图稳定性）：
+```bash
+bash scripts/install_extras.sh plots --force
+```
 
 ## 收官验收清单（建议逐条勾选）
 1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
