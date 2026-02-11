@@ -9,6 +9,11 @@ if [[ "${1:-}" == "--help" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ ! -f "${ROOT_DIR}/configs/default.env" ]]; then
+  echo "missing configs/default.env"
+  echo "Next: cp configs/default.env.example configs/default.env  # 如无 example 请按 README 创建"
+  exit 1
+fi
 source "${ROOT_DIR}/configs/default.env"
 
 ROLLOUT_DIR="${OUTPUT_ROOT}/day4_rollout_30h"
@@ -42,11 +47,32 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ ! -x "${ROOT_DIR}/scripts/run_gpu.sh" ]]; then
+  echo "missing scripts/run_gpu.sh"
+  echo "Next: git pull --rebase && chmod +x scripts/run_gpu.sh"
+  exit 1
+fi
+
+if [[ ! -d "${ROLLOUT_DIR}" ]]; then
+  echo "rollout_dir not found: ${ROLLOUT_DIR}"
+  echo "Next: bash scripts/run_day3_smoke_gpu.sh && bash scripts/run_day5_rmse.sh && bash scripts/run_day6_plots.sh"
+  exit 1
+fi
+
+if ! "${ROOT_DIR}/scripts/run_gpu.sh" -c "import matplotlib, scipy" >/dev/null 2>&1; then
+  echo "missing plotting deps (matplotlib/scipy)"
+  echo "Next: bash scripts/install_extras.sh plots"
+  exit 1
+fi
+
 echo "[STEP] Product all-in-one"
 echo "[INPUT] rollout_dir=${ROLLOUT_DIR}"
 echo "[HOURS] ${HOURS}"
 echo "[OUTPUT] ${ROOT_DIR}/figures/product"
 echo "[NEXT] ls -lh ${ROOT_DIR}/figures/product | head -n 20"
+if [[ -n "${WITH_GEO}" ]]; then
+  echo "[GEO] requested. 若缺 cartopy/地理资源将自动回退到普通绘图（不中断）。"
+fi
 
 # fill for core vars
 bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
@@ -74,3 +100,5 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   ${WITH_GEO} \
   ${FORCE}
 
+echo "[DONE] product all-in-one complete"
+echo "[NEXT] bash scripts/run_e_stage_verify.sh --force"
