@@ -63,26 +63,37 @@ def draw_global_fill(
     ccrs, cfeature = try_import_cartopy()
     assets_dir = resolve_geo_assets_dir(geo_assets_dir)
     resource_hint = detect_geo_resource(assets_dir)
-    geo_ok = with_geo and ccrs is not None
+    geo_requested = bool(with_geo)
+    geo_ok = geo_requested and ccrs is not None
+    geo_error = ""
     vmin_use, vmax_use = _auto_range(data, vmin, vmax)
     extent = (0.0, 360.0, -90.0, 90.0)
 
     if geo_ok:
-        fig = plt.figure(figsize=(7.0, 3.6), dpi=dpi)
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        ax.set_global()
-        ax.coastlines(linewidth=0.5)
-        if cfeature is not None:
-            ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
-        im = ax.imshow(
-            data,
-            extent=extent,
-            origin="upper",
-            cmap=cmap,
-            vmin=vmin_use,
-            vmax=vmax_use,
-            transform=ccrs.PlateCarree(),
-        )
+        try:
+            fig = plt.figure(figsize=(7.0, 3.6), dpi=dpi)
+            ax = plt.axes(projection=ccrs.PlateCarree())
+            ax.set_global()
+            ax.coastlines(linewidth=0.5)
+            if cfeature is not None:
+                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+            im = ax.imshow(
+                data,
+                extent=extent,
+                origin="upper",
+                cmap=cmap,
+                vmin=vmin_use,
+                vmax=vmax_use,
+                transform=ccrs.PlateCarree(),
+            )
+        except Exception as exc:
+            # cartopy may import successfully but fail at runtime if scipy/pykdtree is missing.
+            geo_ok = False
+            geo_error = str(exc)
+            fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
+            im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap, vmin=vmin_use, vmax=vmax_use)
+            ax.set_xlabel("lon")
+            ax.set_ylabel("lat")
     else:
         fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
         im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap, vmin=vmin_use, vmax=vmax_use)
@@ -110,9 +121,11 @@ def draw_global_fill(
         "vmin": float(vmin_use),
         "vmax": float(vmax_use),
         "dpi": int(dpi),
+        "with_geo_requested": geo_requested,
         "with_geo": bool(geo_ok),
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
         "geo_resource_hint": resource_hint,
+        "geo_error": geo_error,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
     if extra_meta:
