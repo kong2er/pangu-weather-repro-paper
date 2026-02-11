@@ -11,16 +11,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
-
-def _try_import_cartopy():
-    try:
-        import cartopy.crs as ccrs  # type: ignore
-        import cartopy.feature as cfeature  # type: ignore
-
-        return ccrs, cfeature
-    except Exception:
-        return None, None
+from pangu_weather_repro.visualization.geo import (
+    detect_geo_resource,
+    resolve_geo_assets_dir,
+    try_import_cartopy,
+)
 
 
 def _auto_range(data: np.ndarray, vmin: float | None, vmax: float | None) -> tuple[float, float]:
@@ -44,6 +39,7 @@ def draw_global_fill(
     vmax: float | None = None,
     dpi: int = 220,
     with_geo: bool = False,
+    geo_assets_dir: str | None = None,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
@@ -64,7 +60,9 @@ def draw_global_fill(
     if data.ndim != 2:
         raise ValueError(f"draw_global_fill expects 2D array, got {data.shape}")
 
-    ccrs, cfeature = _try_import_cartopy()
+    ccrs, cfeature = try_import_cartopy()
+    assets_dir = resolve_geo_assets_dir(geo_assets_dir)
+    resource_hint = detect_geo_resource(assets_dir)
     geo_ok = with_geo and ccrs is not None
     vmin_use, vmax_use = _auto_range(data, vmin, vmax)
     extent = (0.0, 360.0, -90.0, 90.0)
@@ -113,6 +111,8 @@ def draw_global_fill(
         "vmax": float(vmax_use),
         "dpi": int(dpi),
         "with_geo": bool(geo_ok),
+        "geo_assets_dir": str(assets_dir) if assets_dir else "",
+        "geo_resource_hint": resource_hint,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
     if extra_meta:

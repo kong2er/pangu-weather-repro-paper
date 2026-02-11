@@ -90,6 +90,7 @@ def main() -> None:
     p.add_argument("--vars", default="z500,t2m", help="Comma list from: z500,msl,u10,v10,t2m")
     p.add_argument("--hours", default="", help="Optional comma list of cumulative lead hours, e.g. 24,30")
     p.add_argument("--with-geo", action="store_true", help="Enable cartopy-based map overlays if available.")
+    p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
     p.add_argument("--force", action="store_true", help="Overwrite existing png/json outputs.")
     args = p.parse_args()
 
@@ -115,6 +116,10 @@ def main() -> None:
     print(f"[OUTPUT] out_dir={out_dir}")
     print(f"[VARS] {vars_list}")
     print(f"[LEADS] {sorted(lead_filter)}")
+    if args.with_geo:
+        print(f"[GEO] enabled, assets={args.geo_assets_dir}")
+    else:
+        print("[GEO] disabled")
 
     generated = 0
     skipped = 0
@@ -145,6 +150,7 @@ def main() -> None:
                 lead_hour=lead,
                 units=UNITS_MAP.get(var, ""),
                 with_geo=args.with_geo,
+                geo_assets_dir=args.geo_assets_dir,
                 force=args.force,
                 extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle"},
             )
@@ -161,4 +167,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
