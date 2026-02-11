@@ -142,3 +142,8 @@ https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-i
 4. 论文图包：`tools/plot_paper_bundle.py` 生成 `figures/paper/*.png`
 5. Region demo：`tools/region_demo.py` 生成 `outputs/region_demo/*`
 6. 报告更新：`artifacts/day7/REPORT.md`
+
+## 12. 推理对齐实验记录（可选）
+```bash
+scripts/run_alignment_experiments.sh
+```

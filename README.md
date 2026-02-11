@@ -172,6 +172,7 @@ https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-i
 4. 论文图输出生成：`figures/paper/*.png` + `figures/paper/*.json`
 5. Region 适配 demo 通过：`tools/region_demo.py` 产物存在
 6. 报告已更新：`artifacts/day7/REPORT.md`
+7. 推理对齐记录：`artifacts/day7/alignment_experiments.md`
 
 ## 交付注意事项（重要）
 1. 默认不覆盖产物，需覆盖请显式加 `--force`

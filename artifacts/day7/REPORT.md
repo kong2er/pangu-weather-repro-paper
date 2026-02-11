@@ -71,3 +71,10 @@
 - tests/test_plot_fields_validation.py
 - .github/workflows/ci.yml
 - README.md
+
+## 收官确认（中文）
+- CPU/GPU 最小链路已通过
+- 360h split + auto-retry 已通过
+- 论文图包已生成（figures/paper）
+- Region 适配 demo 已验证
+- 推理对齐记录已生成（artifacts/day7/alignment_experiments.md）
