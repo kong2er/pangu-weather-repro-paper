@@ -24,6 +24,7 @@
 - env_cpu.sh 清理 CUDA 路径；env_gpu.sh 校验 CUDA 库与 providers
 - Day5/Day6 默认不覆盖产物，需 --force 才覆盖
 - 依赖提示统一指向 scripts/install_extras.sh
+- 360h 推理支持断点续跑：生成 forecast_state.json + rollout_*_last.npy
 
 ## 对齐进度（zjobsdev/pangu）
 - 已实现短/长程调度（1–84h / 84–360h）与统一 runner
@@ -40,7 +41,7 @@
 - 状态：PASS（分段 84h + 276h）
 - 短段报告：`outputs/forecast_360h_split_20260210_220939_84h/forecast_report.json`
 - 长段报告：`outputs/forecast_360h_split_20260210_220939_276h/forecast_report.json`
-- 说明：split 模式避免单次 360h OOM，同时保持 pangu_ref 调度策略
+- 说明：split 模式避免单次 360h OOM，同时保持 pangu_ref 调度策略；支持 `--resume-from` 续跑不中断
 
 ## 变更文件（关键）
 - pangu_weather_repro/infer/*

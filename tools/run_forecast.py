@@ -20,6 +20,30 @@ def _parse_hours(text: str) -> List[int]:
     return [int(x.strip()) for x in text.split(",") if x.strip()]
 
 
+def _load_resume_hour(out_dir: str) -> int:
+    state_path = os.path.join(out_dir, "forecast_state.json")
+    report_path = os.path.join(out_dir, "forecast_report.json")
+    if os.path.exists(state_path):
+        try:
+            import json
+
+            with open(state_path, "r") as f:
+                state = json.load(f)
+            return int(state.get("last_hour", 0))
+        except Exception:
+            return 0
+    if os.path.exists(report_path):
+        try:
+            import json
+
+            with open(report_path, "r") as f:
+                report = json.load(f)
+            return int(report.get("total_hours", 0))
+        except Exception:
+            return 0
+    return 0
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "models"))
@@ -33,16 +57,18 @@ def main() -> None:
     p.add_argument("--save-hours", default="1,3,6,24,84,120,168,240,360")
     p.add_argument("--save-all", action="store_true")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--resume-from", default="")
     p.add_argument("--no-gpu", action="store_true")
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--noarena", action="store_true")
     p.add_argument("--gpu-mem-limit-mb", type=int, default=None)
     p.add_argument("--no-cache-sessions", action="store_true")
+    p.add_argument("--cache-sessions", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
     output_root = os.environ.get("OUTPUT_ROOT", "outputs")
-    out_dir = args.out_dir or os.path.join(output_root, f"forecast_{args.target_hours}h")
+    out_dir = args.resume_from or args.out_dir or os.path.join(output_root, f"forecast_{args.target_hours}h")
 
     if args.mode == "split":
         if args.target_hours <= 84:
@@ -66,6 +92,8 @@ def main() -> None:
     print("[forecast] models_dir:", args.models_dir)
     print("[forecast] processed_dir:", args.processed_dir)
     print("[forecast] out_dir:", out_dir)
+    if args.resume_from:
+        print("[forecast] resume_from:", args.resume_from)
 
     if args.dry_run:
         if args.mode == "split":
@@ -108,8 +136,26 @@ def main() -> None:
             mode="long",
             strategy=args.strategy,
         )
+        if args.resume_from:
+            out_dir_short = out_dir + "_84h"
+            out_dir_long = out_dir + "_276h"
+            if os.path.exists(out_dir_short) and _load_resume_hour(out_dir_short) == 0:
+                raise SystemExit(
+                    f"resume requested but no state/report found in {out_dir_short}. "
+                    "Use --force or a new --out-dir."
+                )
+            if os.path.exists(out_dir_long) and _load_resume_hour(out_dir_long) == 0:
+                raise SystemExit(
+                    f"resume requested but no state/report found in {out_dir_long}. "
+                    "Use --force or a new --out-dir."
+                )
         steps_to_check = sorted(set(short_sched.steps + long_sched.steps))
     else:
+        if args.resume_from and os.path.exists(out_dir) and _load_resume_hour(out_dir) == 0:
+            raise SystemExit(
+                f"resume requested but no state/report found in {out_dir}. "
+                "Use --force or a new --out-dir."
+            )
         steps_to_check = sorted(set(schedule.steps))
 
     missing = []
@@ -124,28 +170,48 @@ def main() -> None:
         print("Next: bash scripts/01_download_models.sh or set MODELS_ROOT")
         raise SystemExit(2)
 
+    cache_sessions = args.cache_sessions
+    if args.mode in {"split", "full", "long"}:
+        cache_sessions = False if not args.cache_sessions else True
+    if args.no_cache_sessions:
+        cache_sessions = False
+
     runner = ForecastRunner(
         models_dir=args.models_dir,
         use_gpu=not args.no_gpu,
         threads=args.threads,
         noarena=args.noarena,
         gpu_mem_limit_mb=args.gpu_mem_limit_mb,
-        cache_sessions=not args.no_cache_sessions,
+        cache_sessions=cache_sessions,
     )
 
     try:
         if args.mode == "split":
             out_dir_short = out_dir + "_84h"
             out_dir_long = out_dir + "_276h"
-            result_short = runner.run_schedule(
-                schedule=short_sched,
-                processed_dir=args.processed_dir,
-                out_dir=out_dir_short,
-                save_hours=_parse_hours(args.save_hours),
-                force=args.force,
-                save_all=args.save_all,
-            )
-            print("[forecast] report short:", result_short.report_path)
+            resume_short = _load_resume_hour(out_dir_short) if args.resume_from else 0
+            resume_long = _load_resume_hour(out_dir_long) if args.resume_from else 0
+
+            if resume_short >= 84:
+                print("[forecast] short segment already done, skip.")
+            else:
+                result_short = runner.run_schedule(
+                    schedule=short_sched,
+                    processed_dir=args.processed_dir,
+                    out_dir=out_dir_short,
+                    save_hours=_parse_hours(args.save_hours),
+                    force=args.force,
+                    save_all=args.save_all,
+                    resume_from_hour=resume_short if resume_short > 0 else None,
+                )
+                print("[forecast] report short:", result_short.report_path)
+
+            if resume_long >= args.target_hours:
+                print("[forecast] long segment already done, skip.")
+                return
+
+            if resume_short < 84 and not os.path.exists(out_dir_short):
+                raise SystemExit("short segment missing; run split without --resume-from first.")
 
             result_long = runner.run_schedule(
                 schedule=long_sched,
@@ -154,9 +220,13 @@ def main() -> None:
                 save_hours=_parse_hours(args.save_hours),
                 force=args.force,
                 save_all=args.save_all,
+                resume_from_hour=resume_long if resume_long > 0 else None,
+                init_from_dir=out_dir_short,
+                init_from_hour=84,
             )
             print("[forecast] report long:", result_long.report_path)
         else:
+            resume_hour = _load_resume_hour(out_dir) if args.resume_from else 0
             result = runner.run_schedule(
                 schedule=schedule,
                 processed_dir=args.processed_dir,
@@ -164,10 +234,16 @@ def main() -> None:
                 save_hours=_parse_hours(args.save_hours),
                 force=args.force,
                 save_all=args.save_all,
+                resume_from_hour=resume_hour if resume_hour > 0 else None,
             )
             print("[forecast] report:", result.report_path)
     except Exception as exc:
         msg = str(exc)
+        if "out_dir exists" in msg:
+            print("[forecast] out_dir exists. Next:")
+            print("  - use --resume-from <out_dir> to continue")
+            print("  - or pass --out-dir to a new directory")
+            print("  - or add --force to overwrite")
         if "Failed to allocate memory" in msg or "CUDA out of memory" in msg:
             print("[forecast] OOM detected. Try one of:")
             print("  - add --noarena")
@@ -176,6 +252,7 @@ def main() -> None:
             print("  - use --short-step 6 (avoid 1h model in long runs)")
             print("  - add --no-cache-sessions (avoid GPU mem accumulation)")
             print("  - use --mode split (run 84h then 276h)")
+            print("  - use --resume-from <out_dir> to continue after crash")
             print("  - reduce target hours or use --mode short with fewer steps")
         raise
 

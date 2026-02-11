@@ -89,6 +89,14 @@ scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --shor
 ```bash
 scripts/run_360h_split.sh
 ```
+更稳（限制显存上限，避免碎片化）：
+```bash
+scripts/run_360h_split.sh --gpu-mem-limit-mb 4096
+```
+断连/失败后可续跑（不会覆盖）：
+```bash
+scripts/run_360h_split.sh --resume-from /root/autodl-tmp/pangu-weather-repro/outputs/forecast_360h_split_YYYYMMDD_HHMMSS
+```
 
 ## 论文级图输出
 ```bash

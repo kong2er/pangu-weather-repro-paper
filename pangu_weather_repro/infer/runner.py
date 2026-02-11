@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Tuple
 
@@ -113,6 +114,25 @@ class ForecastRunner:
         return pressure, surface
 
     @staticmethod
+    def _load_rollout(out_dir: str, hour: int) -> Tuple[np.ndarray, np.ndarray]:
+        p_path = os.path.join(out_dir, f"rollout_pressure_{hour}h.npy")
+        s_path = os.path.join(out_dir, f"rollout_surface_{hour}h.npy")
+        if not os.path.exists(p_path) or not os.path.exists(s_path):
+            # fallback to last checkpoint files
+            p_last = os.path.join(out_dir, "rollout_pressure_last.npy")
+            s_last = os.path.join(out_dir, "rollout_surface_last.npy")
+            if os.path.exists(p_last) and os.path.exists(s_last):
+                p_path, s_path = p_last, s_last
+            else:
+                raise FileNotFoundError(
+                    f"missing rollout inputs for hour {hour}: {p_path} / {s_path}. "
+                    "Run the earlier segment first or rerun with --save-all."
+                )
+        pressure = np.load(p_path).astype(np.float32)
+        surface = np.load(s_path).astype(np.float32)
+        return pressure, surface
+
+    @staticmethod
     def _map_inputs(sess, pressure: np.ndarray, surface: np.ndarray) -> Dict[str, np.ndarray]:
         ins = sess.get_inputs()
         feed: Dict[str, np.ndarray] = {}
@@ -154,18 +174,40 @@ class ForecastRunner:
         save_hours: Iterable[int],
         force: bool = False,
         save_all: bool = False,
+        resume_from_hour: int | None = None,
+        init_from_dir: str | None = None,
+        init_from_hour: int | None = None,
     ) -> ForecastResult:
-        if os.path.exists(out_dir) and not force:
-            raise FileExistsError(f"out_dir exists: {out_dir}. Use --force to overwrite.")
+        if os.path.exists(out_dir) and not force and resume_from_hour is None:
+            raise FileExistsError(
+                f"out_dir exists: {out_dir}. Use --resume-from to continue or --force to overwrite."
+            )
         os.makedirs(out_dir, exist_ok=True)
 
-        pressure, surface = self._load_inputs(processed_dir)
-        hours = 0
+        if init_from_dir and init_from_hour is not None:
+            pressure, surface = self._load_rollout(init_from_dir, init_from_hour)
+            hours = init_from_hour
+        else:
+            pressure, surface = self._load_inputs(processed_dir)
+            hours = 0
         steps = []
         records = []
         save_hours_set = set(int(h) for h in save_hours)
+        state_path = os.path.join(out_dir, "forecast_state.json")
+        completed_hours: List[int] = []
 
+        if resume_from_hour is not None:
+            if resume_from_hour > hours:
+                # try resume from this out_dir
+                pressure, surface = self._load_rollout(out_dir, resume_from_hour)
+                hours = resume_from_hour
+            completed_hours.append(hours)
+
+        start_time = time.time()
         for step in schedule.steps:
+            if resume_from_hour is not None and (hours + step) <= resume_from_hour:
+                hours += step
+                continue
             sess = self._get_session(step)
             outputs = sess.run(None, self._map_inputs(sess, pressure, surface))
             pressure, surface = self._split_outputs(sess, outputs)
@@ -176,12 +218,30 @@ class ForecastRunner:
                 "step": step,
                 "hour": hours,
                 "providers": sess.get_providers(),
+                "elapsed_sec": round(time.time() - start_time, 3),
             }
             records.append(record)
+            completed_hours.append(hours)
 
             if save_all or hours in save_hours_set:
                 np.save(os.path.join(out_dir, f"rollout_pressure_{hours}h.npy"), np.asarray(pressure))
                 np.save(os.path.join(out_dir, f"rollout_surface_{hours}h.npy"), np.asarray(surface))
+            # always keep a last checkpoint for resume
+            np.save(os.path.join(out_dir, "rollout_pressure_last.npy"), np.asarray(pressure))
+            np.save(os.path.join(out_dir, "rollout_surface_last.npy"), np.asarray(surface))
+
+            state = {
+                "last_hour": hours,
+                "completed_hours": completed_hours,
+                "steps": steps,
+                "providers_used": record["providers"],
+                "processed_dir": processed_dir,
+                "models_dir": self.models_dir,
+                "out_dir": out_dir,
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+            with open(state_path, "w") as f:
+                json.dump(state, f, indent=2)
 
             if not self.cache_sessions:
                 # release session to avoid GPU memory accumulation
