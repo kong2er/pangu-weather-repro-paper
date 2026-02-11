@@ -1,31 +1,29 @@
-# REPORT (Day3–Day8 Stable Repro + Alignment Progress)
+# REPORT (Day3->Day6 Minimal Chain)
 
-## 环境
-- CPU smoke：`scripts/run_day8_cpu_smoke.sh`
-- GPU 最小链路：`scripts/run_day3_smoke_gpu.sh` → `scripts/run_day5_rmse.sh` → `scripts/run_day6_plots.sh`
+## Environment
+- python: /root/projects/pangu-weather-repro-uv/.venv-gpu/bin/python
+- onnxruntime providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
 
-## 稳定链路（命令）
-1) scripts/run_day8_cpu_smoke.sh
-2) scripts/run_day3_smoke_gpu.sh
-3) scripts/run_day5_rmse.sh
-4) scripts/run_day6_plots.sh
-5) scripts/final_verify.sh
+## Minimal Chain (commands)
+1) scripts/run_day3_smoke_gpu.sh
+2) scripts/run_day5_rmse.sh
+3) scripts/run_day6_plots.sh
+4) scripts/regression_minimal.sh
 
-## 预期产物
+## Expected Artifacts
 - artifacts/day5/rmse.csv
 - figures/day6/field_z500_2023070900_t+024.png
 - figures/day6/field_z500_2023070900_t+030.png
 - figures/day6/rmse_z500_2023070900.png
-- artifacts/day7/reference_diff_report.md
 
-## 稳定性改造（已完成）
-- CPU/GPU venv 幂等创建（支持 --update/--force）
-- run_cpu.sh / run_gpu.sh 强制正确解释器与 PYTHONPATH
-- env_cpu.sh 清理 CUDA 路径；env_gpu.sh 校验 CUDA 库与 providers
-- Day5/Day6 默认不覆盖产物，需 --force 才覆盖
-- 依赖提示统一指向 scripts/install_extras.sh
-- 360h 推理支持断点续跑：生成 forecast_state.json + rollout_*_last.npy
+## Covered Pitfalls
+- PYTHONPATH missing in run_smoke_gpu_noarena
+- LD_LIBRARY_PATH missing for CUDA libs
+- pip logging error (.venv-gpu/bin/pip missing)
+- missing netCDF4/cdsapi/matplotlib/cartopy
+- plot_fields default rollout/lead mismatch
 
+<<<<<<< Updated upstream
 ## 对齐进度（zjobsdev/pangu）
 - 已实现短/长程调度（1–84h / 84–360h）与统一 runner
 - tools/run_forecast.py 支持 1/3/6/24h 模型选择
@@ -56,22 +54,20 @@
 - scripts/env_cpu.sh
 - scripts/env_gpu.sh
 - scripts/run_cpu.sh
+
+## Changed Files
 - scripts/run_gpu.sh
+- scripts/fix_venv_pip.sh
+- scripts/install_gpu_deps.sh
+- scripts/install_extras.sh
 - scripts/run_day3_smoke_gpu.sh
 - scripts/run_day5_rmse.sh
 - scripts/run_day6_plots.sh
-- scripts/run_day8_cpu_smoke.sh
-- scripts/final_verify.sh
-- scripts/install_gpu_deps.sh
-- scripts/install_extras.sh
-- scripts/vendor_sync_reference.sh
-- docs/GAP_REPORT.md
-- docs/reference_pangu.md
+- scripts/regression_minimal.sh
+- tools/run_smoke_gpu_noarena.py
+- tools/eval_rmse.py
+- tools/plot_fields.py
+- tools/plot_rmse_curve.py
+- tests/test_plot_fields_validation.py
+- .github/workflows/ci.yml
 - README.md
-- RUNBOOK.md
-
-## 收官确认（中文）
-- CPU/GPU 最小链路已通过
-- 360h split + auto-retry 已通过
-- 论文图包已生成（figures/paper）
-- Region 适配 demo 已验证
