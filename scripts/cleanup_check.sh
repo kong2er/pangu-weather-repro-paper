@@ -1,28 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_TMP="/root/autodl-tmp/pangu-weather-repro"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# dry-run: bash scripts/cleanup_check.sh
+# apply:   bash scripts/cleanup_check.sh --apply
 
-echo "[STEP] disk summary"
-df -h || true
+APPLY=0
+[[ "${1:-}" == "--apply" ]] && APPLY=1
 
-echo "[STEP] key directories"
-du -sh "${ROOT_TMP}" 2>/dev/null || true
-du -sh "${ROOT_TMP}/outputs" 2>/dev/null || true
-du -sh "${ROOT_TMP}/models" 2>/dev/null || true
-du -sh "${ROOT_TMP}/processed" 2>/dev/null || true
-du -sh "${REPO_ROOT}" 2>/dev/null || true
+source configs/default.env
 
-echo "[STEP] top 20 in ${ROOT_TMP}"
-if [[ -d "${ROOT_TMP}" ]]; then
-  du -ah "${ROOT_TMP}" 2>/dev/null | sort -hr | head -n 20
-else
-  echo "[INFO] ${ROOT_TMP} not found."
+OUT="${OUTPUT_ROOT:-/root/autodl-tmp/pangu-weather-repro/outputs}"
+
+echo "[INFO] OUT=$OUT"
+echo "[INFO] Exclude: $OUT/day4_rollout_30h/*"
+echo "[INFO] Size filter: +50M"
+echo
+
+if [[ $APPLY -eq 0 ]]; then
+  echo "[DRY-RUN] Duplicate file groups:"
+  find "$OUT" -type f \
+    ! -path "$OUT/day4_rollout_30h/*" \
+    -size +50M -print0 \
+  | xargs -0 sha256sum \
+  | sort \
+  | awk '
+  {h=$1; f=$2; c[h]++; files[h]=files[h] ORS f}
+  END{
+    for (k in c) if (c[k]>1){
+      print "=== DUP HASH:",k,"COUNT:",c[k];
+      print files[k];
+      print ""
+    }
+  }'
+  exit 0
 fi
 
-echo "[STEP] top 20 in repo"
-du -ah "${REPO_ROOT}" 2>/dev/null | sort -hr | head -n 20
+echo "[APPLY] Deleting duplicates (keep the first file per hash):"
+find "$OUT" -type f \
+  ! -path "$OUT/day4_rollout_30h/*" \
+  -size +50M -print0 \
+| xargs -0 sha256sum \
+| sort \
+| awk '
+{
+  h=$1; f=$2;
+  if (++seen[h] > 1) print f;
+}' \
+| while IFS= read -r f; do rm -f "$f"; echo "[DEL] $f"; done
 
-echo "[NEXT] 预演清理: bash scripts/cleanup_autodl.sh --dry-run"
-echo "[NEXT] 真清理: bash scripts/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3"
+echo
+echo "[DONE] Re-run dry-run to confirm: bash scripts/cleanup_check.sh"
