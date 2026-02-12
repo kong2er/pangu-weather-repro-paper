@@ -15,13 +15,7 @@ from typing import Any
 import numpy as np
 
 from pangu_weather_repro.contracts import SURFACE_VARS
-from pangu_weather_repro.visualization.product_draw import (
-    draw_diff_fill,
-    draw_global_fill,
-    draw_msl_wind,
-    draw_wind_speed,
-    draw_wind_vector,
-)
+from pangu_weather_repro.visualization.blueprint_adapter import resolve_product_draw_impl
 
 SURFACE_INDEX = {name: idx for idx, name in enumerate(SURFACE_VARS)}
 UNITS_MAP = {
@@ -162,6 +156,12 @@ def main() -> None:
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
     p.add_argument("--style-profile", default="standard", help="Style profile for product figures (default: standard).")
     p.add_argument(
+        "--impl",
+        default="auto",
+        choices=["auto", "native", "blueprint"],
+        help="Drawing implementation selector (default: auto).",
+    )
+    p.add_argument(
         "--vector-step",
         type=int,
         default=0,
@@ -207,6 +207,8 @@ def main() -> None:
     else:
         print("[GEO] disabled")
     print(f"[STYLE] {args.style_profile}")
+    impl_name, draw_impl, impl_note = resolve_product_draw_impl(args.impl)
+    print(f"[IMPL] {impl_name} ({impl_note})")
     if args.vector_step > 0:
         print(f"[VECTOR] step override={args.vector_step}")
     if extent is not None:
@@ -235,7 +237,7 @@ def main() -> None:
             if "fill" in kinds:
                 out_png = out_dir / f"product_{var}_t+{lead:03d}.png"
                 before = out_png.exists()
-                png, meta_json = draw_global_fill(
+                png, meta_json = draw_impl["draw_global_fill"](
                     field,
                     out_png,
                     var=var,
@@ -268,7 +270,7 @@ def main() -> None:
                     continue
                 out_png = out_dir / f"product_diff_{var}_t+{lead:03d}.png"
                 before = out_png.exists()
-                png, meta_json = draw_diff_fill(
+                png, meta_json = draw_impl["draw_diff_fill"](
                     field,
                     gt,
                     out_png,
@@ -299,7 +301,7 @@ def main() -> None:
                     continue
                 out_png = out_dir / f"product_vector_uv10_t+{lead:03d}.png"
                 before = out_png.exists()
-                png, meta_json = draw_wind_vector(
+                png, meta_json = draw_impl["draw_wind_vector"](
                     u10,
                     v10,
                     out_png,
@@ -330,7 +332,7 @@ def main() -> None:
                     continue
                 out_png = out_dir / f"product_wind_speed_t+{lead:03d}.png"
                 before = out_png.exists()
-                png, meta_json = draw_wind_speed(
+                png, meta_json = draw_impl["draw_wind_speed"](
                     u10,
                     v10,
                     out_png,
@@ -361,7 +363,7 @@ def main() -> None:
                     continue
                 out_png = out_dir / f"product_msl_wind_t+{lead:03d}.png"
                 before = out_png.exists()
-                png, meta_json = draw_msl_wind(
+                png, meta_json = draw_impl["draw_msl_wind"](
                     msl,
                     u10,
                     v10,

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/run_product_all.sh [--rollout-dir PATH] [--hours 24,30] [--with-geo] [--force]"
+  echo "Usage: scripts/run_product_all.sh [--rollout-dir PATH] [--hours 24,30] [--with-geo] [--impl auto|native|blueprint] [--force]"
   echo "中文说明: 一键生成 fill/diff/vector/wind_speed/msl_wind 五类产品图，默认不覆盖。"
   echo "Example: scripts/run_product_all.sh --rollout-dir \"\$OUTPUT_ROOT/day4_rollout_30h\" --hours 24,30"
   exit 0
@@ -20,6 +20,7 @@ ROLLOUT_DIR="${OUTPUT_ROOT}/day4_rollout_30h"
 HOURS="24,30"
 WITH_GEO=""
 FORCE=""
+IMPL="auto"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
     --with-geo)
       WITH_GEO="--with-geo"
       shift 1
+      ;;
+    --impl)
+      IMPL="$2"
+      shift 2
       ;;
     --force)
       FORCE="--force"
@@ -80,6 +85,7 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   --vars z500,t2m,u10,v10,msl \
   --hours "${HOURS}" \
   --kinds fill \
+  --impl "${IMPL}" \
   ${WITH_GEO} \
   ${FORCE}
 
@@ -89,6 +95,7 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   --vars z500 \
   --hours "${HOURS}" \
   --kinds diff \
+  --impl "${IMPL}" \
   ${FORCE}
 
 # vector / wind_speed / msl_wind from uv10
@@ -97,6 +104,7 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   --vars u10 \
   --hours "${HOURS}" \
   --kinds vector,wind_speed,msl_wind \
+  --impl "${IMPL}" \
   ${WITH_GEO} \
   ${FORCE}
 
