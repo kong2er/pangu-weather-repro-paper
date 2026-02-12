@@ -18,8 +18,8 @@
 - rollout_dir: /root/autodl-tmp/pangu-weather-repro/outputs/day4_rollout_30h
 
 ## Product Outputs
-- png_count: 19
-- json_count: 19
+- png_count: 18
+- json_count: 18
 
 ## Quick Commands
 ```bash
