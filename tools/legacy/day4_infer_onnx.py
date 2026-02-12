@@ -3,7 +3,7 @@
 Goal: Run a single ONNX step and log outputs for debugging.
 Inputs: processed surface/pressure npy and a 6h ONNX model.
 Outputs: output npy files and meta/log under OUTPUT_ROOT.
-Example: python scripts/day4_infer_onnx.py
+Example: python tools/legacy/day4_infer_onnx.py
 """
 import os, json, time, hashlib
 import numpy as np

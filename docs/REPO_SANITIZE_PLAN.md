@@ -24,6 +24,9 @@
 已执行的 Step3（小步）：
 - `tools/day4_rollout_codex.py` -> `tools/legacy/day4_rollout_codex.py`
 - `tools/day3_smoke_gpu_step6.sh` -> `tools/legacy/day3_smoke_gpu_step6.sh`
+- `scripts/day4_infer_onnx.py` -> `tools/legacy/day4_infer_onnx.py`
+- `scripts/cds_smoke_t2m.py` -> `tools/legacy/cds_smoke_t2m.py`
+- 新增 `scripts/README.md`：官方入口清单（复现人员主视图）
 
 中文注释：
 - 两个文件均未被 README/RUNBOOK/tests/scripts 引用，归档后不影响主链。
