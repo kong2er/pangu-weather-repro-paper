@@ -49,13 +49,21 @@ STYLE_PRESETS: dict[str, dict[str, Any]] = {
             "msl": {"cmap": "RdBu_r", "vlim": 15.0},
         },
         "vector": {
-            "stride_global": 18,
-            "stride_regional": 10,
-            "scale": 250.0,
-            "width": 0.0018,
-            "headwidth": 3.5,
-            "headlength": 4.0,
+            # Default target: clean and readable vector field on 721x1440 grids.
+            "stride_global": 10,
+            "stride_regional": 12,
+            "scale": 650.0,
+            "width": 0.0012,
+            "headwidth": 3.0,
+            "headlength": 3.8,
+            "headaxislength": 3.5,
+            "alpha": 0.78,
+            "pivot": "middle",
             "color": "black",
+            "key_speed": 10.0,
+            "key_label": "10 m s^-1",
+            "key_pos_x": 0.86,
+            "key_pos_y": 1.03,
         },
         "contour": {
             "msl_wind": {
