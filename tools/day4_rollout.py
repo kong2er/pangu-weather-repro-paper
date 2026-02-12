@@ -66,12 +66,12 @@ def _load_inputs(processed_dir: str) -> Tuple[np.ndarray, np.ndarray]:
     if not os.path.exists(surface_path):
         raise FileNotFoundError(
             f"missing surface.npy: {surface_path}. "
-            "Run scripts/04_preprocess_era5_to_npy.py to generate processed inputs."
+            "Run scripts/internal/04_preprocess_era5_to_npy.py to generate processed inputs."
         )
     if not os.path.exists(pressure_path):
         raise FileNotFoundError(
             f"missing pressure.npy: {pressure_path}. "
-            "Run scripts/04_preprocess_era5_to_npy.py to generate processed inputs."
+            "Run scripts/internal/04_preprocess_era5_to_npy.py to generate processed inputs."
         )
     surface = np.load(surface_path).astype(np.float32)
     pressure = np.load(pressure_path).astype(np.float32)
@@ -138,7 +138,7 @@ def _run_step(
         import onnxruntime as ort
     except Exception as exc:
         raise RuntimeError(
-            "onnxruntime is required for rollout. Run: scripts/install_gpu_deps.sh"
+            "onnxruntime is required for rollout. Run: scripts/create_gpu_venv.sh --update"
         ) from exc
     so = _session_options(threads, noarena)
     providers = _providers(use_gpu, gpu_mem_limit_mb)

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/regression_minimal.sh"
+  echo "Usage: scripts/internal/regression_minimal.sh"
   echo "Purpose: minimal Day3->Day6 regression using existing artifacts."
   exit 0
 fi
@@ -20,7 +20,7 @@ if [[ ! -x "${ROOT_DIR}/.venv-gpu/bin/python" ]]; then
 fi
 
 ${ROOT_DIR}/scripts/run_gpu.sh -c "import onnxruntime as ort; print('ORT providers:', ort.get_available_providers())" | grep -q CUDAExecutionProvider || {
-  echo "CUDAExecutionProvider not available. Run scripts/install_gpu_deps.sh and source scripts/env_gpu.sh"
+  echo "CUDAExecutionProvider not available. Run scripts/create_gpu_venv.sh --update and source scripts/env_gpu.sh"
   exit 2
 }
 
@@ -34,7 +34,7 @@ if [[ ! -f "${OUTPUT_ROOT}/day4_rollout_30h/eval_z500.npz" ]]; then
   exit 3
 fi
 
-"${ROOT_DIR}/scripts/run_day5_rmse.sh"
-"${ROOT_DIR}/scripts/run_day6_plots.sh"
+"${ROOT_DIR}/scripts/internal/run_day5_rmse.sh"
+"${ROOT_DIR}/scripts/internal/run_day6_plots.sh"
 
 echo "regression_minimal: OK"

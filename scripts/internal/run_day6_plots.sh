@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/run_day6_plots.sh [--force]"
+  echo "Usage: scripts/internal/run_day6_plots.sh [--force]"
   echo "Purpose: run Day6 plots for 30h rollout (lead 24/30) and rmse curve."
   exit 0
 fi
@@ -15,7 +15,7 @@ mkdir -p "${ROOT_DIR}/figures/day6"
 
 if [[ ! -f "${ROOT_DIR}/artifacts/day5/rmse.csv" ]]; then
   echo "rmse.csv not found: ${ROOT_DIR}/artifacts/day5/rmse.csv"
-  echo "Run: scripts/run_day5_rmse.sh"
+  echo "Run: scripts/internal/run_day5_rmse.sh"
   exit 2
 fi
 

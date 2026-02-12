@@ -43,7 +43,7 @@ class ForecastRunner:
             import onnxruntime as ort  # noqa: F401
         except Exception as exc:
             raise RuntimeError(
-                "onnxruntime is required. Run: scripts/install_gpu_deps.sh (GPU) "
+                "onnxruntime is required. Run: scripts/create_gpu_venv.sh --update (GPU) "
                 "or install CPU extra."
             ) from exc
 
@@ -99,11 +99,11 @@ class ForecastRunner:
         pressure_path = os.path.join(processed_dir, "pressure.npy")
         if not os.path.exists(surface_path):
             raise FileNotFoundError(
-                f"missing surface.npy: {surface_path}. Run scripts/04_preprocess_era5_to_npy.py."
+                f"missing surface.npy: {surface_path}. Run scripts/internal/04_preprocess_era5_to_npy.py."
             )
         if not os.path.exists(pressure_path):
             raise FileNotFoundError(
-                f"missing pressure.npy: {pressure_path}. Run scripts/04_preprocess_era5_to_npy.py."
+                f"missing pressure.npy: {pressure_path}. Run scripts/internal/04_preprocess_era5_to_npy.py."
             )
         surface = np.load(surface_path).astype(np.float32)
         pressure = np.load(pressure_path).astype(np.float32)

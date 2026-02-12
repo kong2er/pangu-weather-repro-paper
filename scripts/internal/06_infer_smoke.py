@@ -3,7 +3,7 @@
 Goal: Run a minimal ONNX inference to validate end-to-end wiring.
 Inputs: processed inputs under PROCESSED_ROOT and model under MODELS_ROOT.
 Outputs: smoke report and per-output npy files under OUTPUT_ROOT.
-Example: uv run python scripts/06_infer_smoke.py --step 6
+Example: uv run python scripts/internal/06_infer_smoke.py --step 6
 """
 import os
 import argparse
@@ -92,11 +92,11 @@ def main():
     pressure_path = os.path.join(args.processed_dir, "pressure.npy")
     if not os.path.exists(surface_path):
         raise FileNotFoundError(
-            f"missing surface.npy: {surface_path}. Run scripts/04_preprocess_era5_to_npy.py first."
+            f"missing surface.npy: {surface_path}. Run scripts/internal/04_preprocess_era5_to_npy.py first."
         )
     if not os.path.exists(pressure_path):
         raise FileNotFoundError(
-            f"missing pressure.npy: {pressure_path}. Run scripts/04_preprocess_era5_to_npy.py first."
+            f"missing pressure.npy: {pressure_path}. Run scripts/internal/04_preprocess_era5_to_npy.py first."
         )
     surface = np.load(surface_path).astype(np.float32)
     pressure = np.load(pressure_path).astype(np.float32)

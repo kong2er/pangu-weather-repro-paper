@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/run_e_stage_verify.sh [--out FILE] [--force]"
+  echo "Usage: scripts/internal/run_e_stage_verify.sh [--out FILE] [--force]"
   echo "Purpose: verify E-stage artifacts (streamlit skeleton + product bundle) and write report."
   echo "中文说明: 默认不覆盖报告，传 --force 才覆盖。"
   exit 0
@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown arg: $1"
-      echo "Run: bash scripts/run_e_stage_verify.sh --help"
+      echo "Run: bash scripts/internal/run_e_stage_verify.sh --help"
       exit 1
       ;;
   esac
@@ -32,7 +32,7 @@ done
 
 if [[ -f "${REPORT_PATH}" && -z "${FORCE}" ]]; then
   echo "E-stage report exists (skip): ${REPORT_PATH}"
-  echo "Next: bash scripts/run_e_stage_verify.sh --force"
+  echo "Next: bash scripts/internal/run_e_stage_verify.sh --force"
   exit 0
 fi
 
@@ -45,7 +45,7 @@ echo "[OUTPUT] ${REPORT_PATH}"
 APP_ENTRY="${ROOT_DIR}/pangu_weather_repro/app/app.py"
 PLOTS_PAGE="${ROOT_DIR}/pangu_weather_repro/app/pages/Plots.py"
 PRODUCT_CLI="${ROOT_DIR}/tools/plot_product_bundle.py"
-PRODUCT_SCRIPT="${ROOT_DIR}/scripts/run_product_bundle.sh"
+PRODUCT_SCRIPT="${ROOT_DIR}/scripts/internal/run_product_bundle.sh"
 
 have_app="false"
 have_product_cli="false"
@@ -151,10 +151,10 @@ cat > "${REPORT_PATH}" <<EOF
 \`\`\`bash
 bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 bash scripts/run_product_all.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
-bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30 --style-profile standard
-bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector,wind_speed,msl_wind
-bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --kinds fill --extent 95,145,10,50 --force
-bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds wind_speed --style-profile standard --extent 95,145,10,50 --force
+bash scripts/internal/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30 --style-profile standard
+bash scripts/internal/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector,wind_speed,msl_wind
+bash scripts/internal/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --kinds fill --extent 95,145,10,50 --force
+bash scripts/internal/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds wind_speed --style-profile standard --extent 95,145,10,50 --force
 \`\`\`
 
 ## Next

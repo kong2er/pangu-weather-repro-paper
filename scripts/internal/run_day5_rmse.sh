@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/run_day5_rmse.sh [--force]"
+  echo "Usage: scripts/internal/run_day5_rmse.sh [--force]"
   echo "Purpose: run Day5 RMSE and show first lines."
   exit 0
 fi
@@ -19,7 +19,7 @@ echo "[STEP] Day5 RMSE"
 echo "[ENV] GPU (.venv-gpu)"
 echo "[INPUT] ${PRED_NPZ}"
 echo "[OUTPUT] ${OUT_CSV}"
-echo "[NEXT] scripts/run_day6_plots.sh"
+echo "[NEXT] scripts/internal/run_day6_plots.sh"
 
 if [[ ! -f "${PRED_NPZ}" ]]; then
   echo "Missing eval package: ${PRED_NPZ}"

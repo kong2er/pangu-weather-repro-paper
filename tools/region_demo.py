@@ -32,7 +32,7 @@ def main() -> None:
     surface_path = os.path.join(args.processed_dir, "surface.npy")
     pressure_path = os.path.join(args.processed_dir, "pressure.npy")
     if not os.path.exists(surface_path) or not os.path.exists(pressure_path):
-        raise SystemExit("missing processed inputs. Run scripts/04_preprocess_era5_to_npy.py")
+        raise SystemExit("missing processed inputs. Run scripts/internal/04_preprocess_era5_to_npy.py")
 
     surface = np.load(surface_path).astype(np.float32)
     pressure = np.load(pressure_path).astype(np.float32)

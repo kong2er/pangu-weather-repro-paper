@@ -27,7 +27,7 @@ if [[ -f "${VENV_SITE}/nvidia/cublas/lib/libcublasLt.so.12" ]]; then
   echo "CUDA libs: libcublasLt.so.12 OK"
 else
   echo "CUDA libs: libcublasLt.so.12 MISSING"
-  echo "Run: scripts/install_gpu_deps.sh"
+  echo "Run: scripts/create_gpu_venv.sh --update"
   return 1 2>/dev/null || exit 1
 fi
 "${VENV_DIR}/bin/python" -c "import onnxruntime as ort; print('ORT providers:', ort.get_available_providers())"

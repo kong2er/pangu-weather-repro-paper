@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/run_day8_cpu_smoke.sh"
+  echo "Usage: scripts/internal/run_day8_cpu_smoke.sh"
   echo "Purpose: run Day8 CPU smoke."
   exit 0
 fi

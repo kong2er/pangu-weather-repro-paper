@@ -45,5 +45,5 @@ echo "[STEP] Install GPU base deps"
 "${VENV_DIR}/bin/python" -m pip install -U -e "${ROOT_DIR}"
 
 echo "[STEP] Install GPU runtime deps"
-"${ROOT_DIR}/scripts/install_gpu_deps.sh"
+"${ROOT_DIR}/scripts/internal/install_gpu_deps.sh"
 echo "GPU venv ready: ${VENV_DIR}"

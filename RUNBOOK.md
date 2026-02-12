@@ -1,255 +1,133 @@
-# RUNBOOK – Pangu-Weather Reproduction (Concise)
+# RUNBOOK (Stage-by-Stage Reproduction)
 
-目标：可复制、可验证、稳定执行。默认以 30h rollout 为主线。
+本手册只服务复现执行。内部治理材料已归档到 `docs/_internal/`。
 
-## 0. 环境准备
+## 0. 预设
+```bash
+cd /root/projects/pangu-weather-repro-uv
+source configs/default.env
+```
+
+## S1 环境与依赖
 CPU：
 ```bash
-cd /root/projects/pangu-weather-repro-uv
-scripts/create_cpu_venv.sh
+bash scripts/create_cpu_venv.sh
 source scripts/env_cpu.sh
-scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
-
 GPU：
 ```bash
-cd /root/projects/pangu-weather-repro-uv
-scripts/create_gpu_venv.sh
-scripts/fix_venv_pip.sh
-scripts/install_gpu_deps.sh
-scripts/01_download_models.sh
-scripts/install_extras.sh rmse
-scripts/install_extras.sh plots
+bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh
 ```
-
-## 1. Day3 → Day6 最小链路（推荐）
+可选扩展依赖：
 ```bash
-source configs/default.env
-scripts/run_day3_smoke_gpu.sh
-scripts/run_day5_rmse.sh
-scripts/run_day6_plots.sh
-scripts/regression_minimal.sh
-scripts/gen_report.sh
-```
-
-## 2. 数据与模型（Day1–Day2）
-```bash
-source configs/default.env
-bash scripts/01_download_models.sh
-scripts/run_gpu.sh scripts/03_download_era5_single.py --date 20230709 --hour 00
-scripts/run_gpu.sh scripts/03_download_era5_pressure.py --date 20230709 --hour 00
-scripts/run_gpu.sh scripts/03_download_era5_single.py --date 20230709 --hour 06
-scripts/run_gpu.sh scripts/03_download_era5_pressure.py --date 20230709 --hour 06
-scripts/run_gpu.sh scripts/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
-scripts/run_gpu.sh scripts/05_validate_inputs.py
-```
-
-## 3. Day4 rollout（30h）
-```bash
-source configs/default.env
-scripts/run_gpu.sh tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"
-```
-
-## 4. Day5 RMSE
-```bash
-source configs/default.env
-scripts/run_day5_rmse.sh
-```
-
-## 5. Day6 plots
-```bash
-source configs/default.env
-scripts/run_day6_plots.sh
-```
-
-## 6. 对齐推理能力（1/3/6/24 & 1–84 & 84–360）
-```bash
-source configs/default.env
-scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 24
-scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode short --short-step 1 --target-hours 84
-scripts/run_gpu.sh tools/run_forecast.py --strategy pangu_ref --mode full --short-step 1 --long-step 24 --target-hours 360 --dry-run
-```
-说明：`--strategy kong2er_ref` 与 `--strategy pangu_ref` 等价，用于显式标记蓝本对齐策略。
-如遇显存不足（OOM），可加：`--noarena` 或 `--gpu-mem-limit-mb 4096`。
-推荐 360h 稳定跑法（分段）：
-```bash
-scripts/run_360h_split.sh
-```
-更稳（限制显存上限）：
-```bash
-scripts/run_360h_split.sh --gpu-mem-limit-mb 4096
-```
-断连/失败后续跑（不覆盖）：
-```bash
-scripts/run_360h_split.sh --resume-from /root/autodl-tmp/pangu-weather-repro/outputs/forecast_360h_split_YYYYMMDD_HHMMSS
-```
-自动重试（逐步降低显存上限）：
-```bash
-scripts/run_360h_split.sh --auto-retry
-```
-
-## 7. 论文级图输出
-```bash
-source configs/default.env
-scripts/run_gpu.sh tools/plot_paper_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --var z500
-```
-提示：支持 `--no-map`、`--cmap`、`--vmin/--vmax`、`--dpi`；若缺 cartopy，会自动回退到无地图绘制。
-
-## 8. Region 扩展（示例裁剪）
-```bash
-scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123
-```
-需要回填到全局网格（对齐模型输入形状）：
-```bash
-scripts/run_cpu.sh tools/region_demo.py --lat-min 28 --lat-max 35 --lon-min 118 --lon-max 123 --pad-to-global --fill-value 0.0
-```
-产物说明：
-- `region_meta.json` 包含裁剪范围、切片索引、形状与回填信息
-
-## 9. Day7 metrics（可选）
-```bash
-source configs/default.env
-scripts/run_gpu.sh tools/day7_metrics.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10 --leads 24 --out artifacts/day7/metrics_summary.csv --md docs/day7_results.md
-scripts/run_gpu.sh tools/day7_plot_summary.py --csv artifacts/day7/metrics_summary.csv --metric rmse_latw --out figures/day7/summary_rmse.png
-```
-
-## 10. 常见错误与修复
-- CPU venv 缺失：`scripts/create_cpu_venv.sh`
-- GPU provider 缺失：`scripts/install_gpu_deps.sh && source scripts/env_gpu.sh`
-- 模型下载失败：`scripts/01_download_models.sh --no-download`
-  或：`scripts/01_download_models.sh --source gdrive`（默认无需 gdown，脚本内置回退）
-  手动放置模型到 `MODELS_ROOT`（默认 `/root/autodl-tmp/pangu-weather-repro/models`）：
-  `pangu_weather_1.onnx` / `pangu_weather_3.onnx` / `pangu_weather_6.onnx` / `pangu_weather_24.onnx`
-  参考入口（在代码块内，便于复制）：
-```text
-https://github.com/HaxyMoly/Pangu-Weather-ReadyToGo
-https://github.com/198808xc/Pangu-Weather/tree/main#global-weather-forecasting-inference-using-the-trained-models
-```
-  直接下载（Google Drive，按 1/3/6/24 顺序）：
-```text
-1h:  https://drive.google.com/file/d/1fg5jkiN_5dHzKb-5H9Aw4MOmfILmeY-S/view?usp=sharing
-3h:  https://drive.google.com/file/d/1EdoLlAXqE9iZLt9Ej9i-JW9LTJ9Jtewt/view?usp=sharing
-6h:  https://drive.google.com/file/d/1a4XTktkZa5GCtjQxDJb_fNaqTAUiEJu4/view?usp=sharing
-24h: https://drive.google.com/file/d/1lweQlxcn9fG0zKNW8ne1Khr9ehRTI6HP/view?usp=sharing
-```
-- netCDF4 缺失：`scripts/install_extras.sh rmse`
-- matplotlib/cartopy 缺失：`scripts/install_extras.sh plots`
-- 缺 rmse.csv / png：`scripts/regression_minimal.sh`
- - 需要覆盖产物：对应脚本加 `--force`
-
-## 11. 收官验收（建议顺序）
-1. CPU smoke：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
-2. GPU 最小链路：`scripts/regression_minimal.sh`
-3. 360h 分段：`scripts/run_360h_split.sh --auto-retry`
-4. 论文图包：`tools/plot_paper_bundle.py` 生成 `figures/paper/*.png`
-5. Region demo：`tools/region_demo.py` 生成 `outputs/region_demo/*`
-6. 报告更新：`artifacts/day7/REPORT.md`
-
-## 12. 推理对齐实验记录（可选）
-```bash
-scripts/run_alignment_experiments.sh
-```
-
-## 13. E1 Streamlit 骨架（可选）
-```bash
-bash scripts/install_extras.sh streamlit
-bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
-```
-预期：
-- 启动日志打印 URL
-- 页面显示环境信息、模型目录检查与输出目录列表
-
-## 14. E2 产品图族（可选）
-命令（单行可复制）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30
-```
-区域图（示例：华东范围）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,u10 --hours 24,30 --kinds fill,vector,msl_wind --extent 95,145,10,50 --force
-```
-一键完整图族（推荐）：
-```bash
-bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
-```
-说明：
-- 默认幂等，不覆盖已有 `figures/product/*` 产物
-- 需要重画时显式加：`--force`
-- 输出包含 PNG 与 JSON 元数据，便于复现记录与论文附录追溯
-- 差值图（z500）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force
-```
-- 若 `eval_z500.npz` 没有 `gt_z500`，会自动从 `eval_z500_meta.json` 的 `gt_paths` 加载 ERA5 真值
-- 风场图（uv10 矢量）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds vector --force
-```
-- 风速图（由 uv10 合成）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds wind_speed --force
-```
-- 业务组合图（msl + uv10）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars u10 --hours 24,30 --kinds msl_wind --force
-```
-
-地理样式（E3，可选）：
-```bash
-scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --extent 95,145,10,50 --force
-```
-说明：
-- 若 `cartopy/scipy` 或地理资源不完整，系统会自动回退到普通绘图，且在 JSON 记录 `geo_error`
-- 资源目录说明：`assets/geo/README.md`
-- 样式与数值对齐差异：`docs/PLOT_ALIGNMENT_GAP.md`
-- 若要尽量避免 geo 回退，建议安装：
-```bash
+bash scripts/install_extras.sh rmse
 bash scripts/install_extras.sh plots --force
-```
-对齐验收报告（可选，若有蓝本参考图可加 `--ref-dir`）：
-```bash
-scripts/run_gpu.sh tools/compare_plots_against_reference.py --pred-dir figures/product --out artifacts/day7/plot_alignment_report.md
+bash scripts/install_extras.sh streamlit
 ```
 
-## 15. G 阶段推荐流程（蓝本对齐）
-1) 一键完整图族：
-```bash
-source configs/default.env && source scripts/env_gpu.sh && bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
-```
-2) 区域化图族（style + extent）：
-```bash
-bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --vars z500,u10 --hours 24,30 --kinds fill,vector,wind_speed,msl_wind --style-profile standard --extent 95,145,10,50 --force
-```
-3) 生成对齐验收报告：
-```bash
-bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_STAGE_REPORT.md
-```
-
-## 16. 仓库轻量健康检查（不跑重推理）
+验收：
 ```bash
 bash scripts/verify_repo_health.sh
 ```
 
-## 17. 清理空间 / 关机前收尾（默认安全）
-仅查看占用（不删除）：
+## S2 CPU smoke
 ```bash
-bash scripts/cleanup_check.sh
+scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
-清理预演（默认 dry-run）：
-```bash
-bash scripts/cleanup_autodl.sh --dry-run
-```
-执行清理（保留最近产物）：
-```bash
-bash scripts/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
-```
-说明：
-- 不会删除仓库源码目录：`/root/projects/pangu-weather-repro-uv`
-- 不会删除模型目录：`/root/autodl-tmp/pangu-weather-repro/models`
-- 不会删除处理数据目录：`/root/autodl-tmp/pangu-weather-repro/processed`
-- 默认仅清理可再生成的 outputs 临时目录、缓存和 /tmp 项目日志
+预期：输出 `contracts smoke ok`。
 
-阶段化总览（S1-S8）：`docs/DELIVERY_SUMMARY.md`
-快速打印 8 阶段命令：`scripts/show_stage_commands.sh`
-内部治理与对齐文档：`docs/_internal/`
+## S3 GPU smoke（主链起点）
+```bash
+bash scripts/final_verify.sh
+```
+预期：至少通过 Day3 smoke、Day5 RMSE、Day6 plots。
+
+## S4 84h 推理
+```bash
+scripts/run_gpu.sh tools/run_forecast.py \
+  --strategy kong2er_ref \
+  --mode short \
+  --target-hours 84 \
+  --noarena --threads 1 \
+  --out-dir "$OUTPUT_ROOT/forecast_84h_$(date +%Y%m%d_%H%M%S)"
+```
+
+## S5 360h 推理（稳态推荐）
+```bash
+bash scripts/run_360h_split.sh --auto-retry
+```
+说明：自动分段 + 失败降载重试（避免 OOM 全盘中断）。
+
+## S6 RMSE + Paper 图
+主线已在 `final_verify.sh` 内执行。单独跑可用内部脚本：
+```bash
+bash scripts/internal/run_day5_rmse.sh --force
+bash scripts/internal/run_day6_plots.sh --force
+```
+
+## S7 产品图族 + Streamlit
+一键产品图：
+```bash
+bash scripts/run_product_all.sh \
+  --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" \
+  --hours 24,30 --impl auto --force
+```
+
+蓝本对齐实现：
+```bash
+bash scripts/run_product_all.sh \
+  --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" \
+  --hours 24,30 --impl blueprint --force
+```
+
+启动页面：
+```bash
+bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
+```
+
+## S8 最终验收
+```bash
+bash scripts/verify_repo_health.sh
+bash scripts/final_verify.sh --with-e-stage --e-stage-force
+```
+预期：`FINAL VERIFY PASS`。
+
+## 排错（最常见）
+1. `CUDAExecutionProvider missing`
+```bash
+bash scripts/create_gpu_venv.sh --update
+source scripts/env_gpu.sh
+```
+
+2. `out_dir exists`
+- 加 `--force`，或切换新 `--out-dir`。
+
+3. 360h OOM
+```bash
+bash scripts/run_360h_split.sh --auto-retry
+```
+
+4. `blueprint unavailable (No module named 'cmaps')`
+```bash
+source scripts/env_gpu.sh
+scripts/run_gpu.sh -m pip install -U cmaps pandas xarray
+```
+
+5. Streamlit 外网 503
+- 优先 SSH 隧道：本地访问 `http://127.0.0.1:8501`。
+
+## 清理空间（关机前）
+只看占用：
+```bash
+bash scripts/internal/cleanup_check.sh
+```
+真清理（默认保守保留，建议先 dry-run）：
+```bash
+bash scripts/internal/cleanup_autodl.sh --dry-run
+bash scripts/internal/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
+```
+
+## 备注
+- 官方入口在 `scripts/`。
+- 研发/归档入口在 `scripts/internal/` 与 `docs/_internal/`，不建议复现人员直接使用。

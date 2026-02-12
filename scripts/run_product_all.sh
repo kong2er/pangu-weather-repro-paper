@@ -60,7 +60,7 @@ fi
 
 if [[ ! -d "${ROLLOUT_DIR}" ]]; then
   echo "rollout_dir not found: ${ROLLOUT_DIR}"
-  echo "Next: bash scripts/run_day3_smoke_gpu.sh && bash scripts/run_day5_rmse.sh && bash scripts/run_day6_plots.sh"
+  echo "Next: bash scripts/final_verify.sh (or run scripts/internal/run_day3_smoke_gpu.sh -> run_day5_rmse.sh -> run_day6_plots.sh)"
   exit 1
 fi
 
@@ -80,7 +80,7 @@ if [[ -n "${WITH_GEO}" ]]; then
 fi
 
 # fill for core vars
-bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
+bash "${ROOT_DIR}/scripts/internal/run_product_bundle.sh" \
   --rollout-dir "${ROLLOUT_DIR}" \
   --vars z500,t2m,u10,v10,msl \
   --hours "${HOURS}" \
@@ -90,7 +90,7 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   ${FORCE}
 
 # diff for z500 (auto fallback to gt_paths if gt_z500 missing)
-bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
+bash "${ROOT_DIR}/scripts/internal/run_product_bundle.sh" \
   --rollout-dir "${ROLLOUT_DIR}" \
   --vars z500 \
   --hours "${HOURS}" \
@@ -99,7 +99,7 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   ${FORCE}
 
 # vector / wind_speed / msl_wind from uv10
-bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
+bash "${ROOT_DIR}/scripts/internal/run_product_bundle.sh" \
   --rollout-dir "${ROLLOUT_DIR}" \
   --vars u10 \
   --hours "${HOURS}" \
@@ -109,4 +109,4 @@ bash "${ROOT_DIR}/scripts/run_product_bundle.sh" \
   ${FORCE}
 
 echo "[DONE] product all-in-one complete"
-echo "[NEXT] bash scripts/run_e_stage_verify.sh --force"
+echo "[NEXT] bash scripts/internal/run_e_stage_verify.sh --force"
