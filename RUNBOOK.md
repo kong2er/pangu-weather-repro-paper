@@ -227,3 +227,4 @@ bash scripts/verify_repo_health.sh
 ```
 
 阶段化总览（S1-S8）：`docs/DELIVERY_SUMMARY.md`
+入口分层矩阵：`docs/ENTRYPOINT_MATRIX.md`
