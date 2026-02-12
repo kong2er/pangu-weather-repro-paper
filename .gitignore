@@ -15,13 +15,11 @@ __pycache__/
 *.tar
 *.zip
 
-# data/model/output directories (heavy)
+# data/model directories (heavy)
 data/
 era5_raw/
 processed/
 models/
-outputs/
-figures/
 cache/
 logs/
 
@@ -35,10 +33,21 @@ _local_junk/
 
 # outputs / archives
 /root/autodl-tmp/
-outputs/
 **/_archives/
 *.tgz
 configs/local.env
+
+# keep runtime output dirs in repo but ignore generated files
+figures/*
+!figures/.gitkeep
+!figures/README.md
+outputs/*
+!outputs/.gitkeep
+!outputs/README.md
+artifacts/day5/*
+artifacts/day4/*
+!artifacts/day4/.gitkeep
+artifacts/day7/*.csv
 
 # packaging
 pangu_weather_repro.egg-info/
