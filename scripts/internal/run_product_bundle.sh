@@ -8,7 +8,7 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/configs/default.env"
 
 echo "[STEP] Product bundle"

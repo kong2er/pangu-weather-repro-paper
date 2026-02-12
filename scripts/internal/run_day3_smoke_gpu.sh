@@ -7,7 +7,7 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/configs/default.env"
 "${ROOT_DIR}/scripts/run_gpu.sh" -c "import sys; print('[ENV]', sys.executable)"
 echo "[STEP] Day3 smoke (24h)"

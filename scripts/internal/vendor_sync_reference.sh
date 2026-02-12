@@ -8,7 +8,7 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MODE="${1:-}"
 REPORT="${ROOT_DIR}/artifacts/day7/reference_diff_report.md"
 

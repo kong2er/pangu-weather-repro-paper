@@ -7,7 +7,7 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MODE="${1:-}"
 source "${ROOT_DIR}/configs/default.env"
 

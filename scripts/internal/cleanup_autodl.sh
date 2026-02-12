@@ -5,7 +5,7 @@ ROOT_TMP_DEFAULT="/root/autodl-tmp/pangu-weather-repro"
 OUTPUT_ROOT_DEFAULT="${ROOT_TMP_DEFAULT}/outputs"
 MODELS_ROOT_DEFAULT="${ROOT_TMP_DEFAULT}/models"
 PROCESSED_ROOT_DEFAULT="${ROOT_TMP_DEFAULT}/processed"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 DRY_RUN=1
 KEEP_DAYS=3

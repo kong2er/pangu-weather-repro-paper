@@ -12,7 +12,7 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MODEL_DIR="/root/autodl-tmp/pangu-weather-repro/models"
 BASE_URL="https://huggingface.co/OpenEarthLab/Pangu-Weather/resolve/main"
 SOURCE="hf"
