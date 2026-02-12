@@ -263,3 +263,4 @@ bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_S
 - 完整 8 阶段流程见：`docs/DELIVERY_SUMMARY.md`
 - 入口分层矩阵见：`docs/ENTRYPOINT_MATRIX.md`
 - 蓝本差异自动核查：`bash scripts/run_kong2er_gap_check.sh`
+- 蓝本页面映射：`docs/APP_PAGE_MAPPING.md`
