@@ -226,6 +226,25 @@ bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_S
 bash scripts/verify_repo_health.sh
 ```
 
+## 17. 清理空间 / 关机前收尾（默认安全）
+仅查看占用（不删除）：
+```bash
+bash scripts/cleanup_check.sh
+```
+清理预演（默认 dry-run）：
+```bash
+bash scripts/cleanup_autodl.sh --dry-run
+```
+执行清理（保留最近产物）：
+```bash
+bash scripts/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
+```
+说明：
+- 不会删除仓库源码目录：`/root/projects/pangu-weather-repro-uv`
+- 不会删除模型目录：`/root/autodl-tmp/pangu-weather-repro/models`
+- 不会删除处理数据目录：`/root/autodl-tmp/pangu-weather-repro/processed`
+- 默认仅清理可再生成的 outputs 临时目录、缓存和 /tmp 项目日志
+
 阶段化总览（S1-S8）：`docs/DELIVERY_SUMMARY.md`
 快速打印 8 阶段命令：`scripts/show_stage_commands.sh`
 内部治理与对齐文档：`docs/_internal/`
