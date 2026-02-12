@@ -225,3 +225,5 @@ bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_S
 ```bash
 bash scripts/verify_repo_health.sh
 ```
+
+阶段化总览（S1-S8）：`docs/DELIVERY_SUMMARY.md`

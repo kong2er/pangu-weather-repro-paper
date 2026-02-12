@@ -258,3 +258,6 @@ bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_S
 1. 默认不覆盖产物，需覆盖请显式加 `--force`
 2. 不提交 `.venv-*`（已在 `.gitignore`）
 3. 模型下载建议优先用 `scripts/01_download_models.sh --source gdrive`
+
+## 阶段化复现总览
+- 完整 8 阶段流程见：`docs/DELIVERY_SUMMARY.md`
