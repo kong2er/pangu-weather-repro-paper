@@ -1,9 +1,9 @@
 """GPU smoke wrapper with no-arena session options.
 
-Goal: Run scripts/06_infer_smoke.py with safer ORT settings on GPU.
+Goal: Run scripts/internal/06_infer_smoke.py with safer ORT settings on GPU.
 Inputs: Environment from configs/default.env and ONNX models in MODELS_ROOT.
 Outputs: smoke report and output npy files under OUTPUT_ROOT.
-Example: uv run python tools/run_smoke_gpu_noarena.py --script scripts/06_infer_smoke.py
+Example: uv run python tools/run_smoke_gpu_noarena.py --script scripts/internal/06_infer_smoke.py
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def main() -> None:
         sys.path.insert(0, str(repo_root))
 
     p = argparse.ArgumentParser()
-    p.add_argument("--script", default="scripts/06_infer_smoke.py")
+    p.add_argument("--script", default="scripts/internal/06_infer_smoke.py")
     args, rest = p.parse_known_args()
 
     try:
@@ -28,7 +28,7 @@ def main() -> None:
     except Exception as exc:
         raise RuntimeError(
             "onnxruntime is required for GPU smoke. "
-            "Try: scripts/install_gpu_deps.sh"
+            "Try: scripts/create_gpu_venv.sh --update"
         ) from exc
 
     # ---- session options: bypass BFCArena limitations ----

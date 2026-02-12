@@ -3,7 +3,7 @@
 Goal: Convert ERA5 nc files to surface/pressure numpy arrays.
 Inputs: ERA5 nc files under ERA5_RAW_ROOT.
 Outputs: surface.npy and pressure.npy under PROCESSED_ROOT.
-Example: uv run python scripts/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
+Example: uv run python scripts/internal/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
 """
 import os
 import argparse

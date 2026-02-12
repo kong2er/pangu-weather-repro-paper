@@ -25,7 +25,7 @@ echo "[CHECK] import package"
 "$ROOT_DIR/scripts/run_cpu.sh" -c "import pangu_weather_repro; print('import ok')"
 
 echo "[CHECK] entry --help"
-bash "$ROOT_DIR/scripts/run_product_bundle.sh" --help >/dev/null
+bash "$ROOT_DIR/scripts/internal/run_product_bundle.sh" --help >/dev/null
 bash "$ROOT_DIR/scripts/run_streamlit.sh" --help >/dev/null
 
 echo "[CHECK] targeted tests"

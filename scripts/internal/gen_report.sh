@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
-  echo "Usage: scripts/gen_report.sh"
+  echo "Usage: scripts/internal/gen_report.sh"
   echo "Purpose: generate artifacts/day7/REPORT.md with env + checklist."
   exit 0
 fi
@@ -27,10 +27,10 @@ cat > "${REPORT_PATH}" <<EOF
 - onnxruntime providers: ${ORT_PROVIDERS}
 
 ## Minimal Chain (commands)
-1) scripts/run_day3_smoke_gpu.sh
-2) scripts/run_day5_rmse.sh
-3) scripts/run_day6_plots.sh
-4) scripts/regression_minimal.sh
+1) scripts/internal/run_day3_smoke_gpu.sh
+2) scripts/internal/run_day5_rmse.sh
+3) scripts/internal/run_day6_plots.sh
+4) scripts/internal/regression_minimal.sh
 
 ## Expected Artifacts
 - artifacts/day5/rmse.csv
@@ -41,9 +41,9 @@ cat > "${REPORT_PATH}" <<EOF
 ## E Stage (Product / Streamlit / Geo)
 - streamlit entry: pangu_weather_repro/app/app.py
 - product bundle cmd:
-  \`bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30\`
+  \`bash scripts/internal/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500,t2m,u10,v10,msl --hours 24,30\`
 - product diff cmd (z500):
-  \`bash scripts/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force\`
+  \`bash scripts/internal/run_product_bundle.sh --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24,30 --kinds fill,diff --force\`
 - geo fallback cmd:
   \`scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "\$OUTPUT_ROOT/day4_rollout_30h" --vars z500 --hours 24 --with-geo --geo-assets-dir assets/geo --force\`
 - product outputs: png=${PRODUCT_PNG_COUNT}, json=${PRODUCT_JSON_COUNT}
@@ -62,19 +62,19 @@ cat > "${REPORT_PATH}" <<EOF
 ## Changed Files
 - scripts/run_gpu.sh
 - scripts/fix_venv_pip.sh
-- scripts/install_gpu_deps.sh
+- scripts/create_gpu_venv.sh --update
 - scripts/install_extras.sh
-- scripts/run_day3_smoke_gpu.sh
-- scripts/run_day5_rmse.sh
-- scripts/run_day6_plots.sh
-- scripts/regression_minimal.sh
+- scripts/internal/run_day3_smoke_gpu.sh
+- scripts/internal/run_day5_rmse.sh
+- scripts/internal/run_day6_plots.sh
+- scripts/internal/regression_minimal.sh
 - tools/run_smoke_gpu_noarena.py
 - tools/eval_rmse.py
 - tools/plot_fields.py
 - tools/plot_rmse_curve.py
 - tools/plot_product_bundle.py
-- scripts/run_product_bundle.sh
-- scripts/run_e_stage_verify.sh
+- scripts/internal/run_product_bundle.sh
+- scripts/internal/run_e_stage_verify.sh
 - pangu_weather_repro/visualization/product_draw.py
 - pangu_weather_repro/visualization/geo.py
 - tests/test_plot_fields_validation.py

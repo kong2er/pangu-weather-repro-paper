@@ -15,7 +15,7 @@ OUTPUT_ROOT="${OUTPUT_ROOT_DEFAULT}"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/cleanup_autodl.sh [--dry-run] [--force] [--keep-days N] [--keep-latest N] [--output-root PATH]
+  bash scripts/internal/cleanup_autodl.sh [--dry-run] [--force] [--keep-days N] [--keep-latest N] [--output-root PATH]
 
 Options:
   --dry-run         仅打印将删除内容（默认）
@@ -26,8 +26,8 @@ Options:
   -h, --help        显示帮助
 
 Examples:
-  bash scripts/cleanup_autodl.sh
-  bash scripts/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
+  bash scripts/internal/cleanup_autodl.sh
+  bash scripts/internal/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
 EOF
 }
 
@@ -65,7 +65,7 @@ du -sh "${PROCESSED_ROOT_DEFAULT}" 2>/dev/null || true
 
 if [[ ! -d "${OUTPUT_ROOT}" ]]; then
   echo "[WARN] output_root not found: ${OUTPUT_ROOT}"
-  echo "[NEXT] source configs/default.env && bash scripts/cleanup_autodl.sh --dry-run"
+  echo "[NEXT] source configs/default.env && bash scripts/internal/cleanup_autodl.sh --dry-run"
   exit 0
 fi
 
@@ -211,5 +211,5 @@ du -sh "${OUTPUT_ROOT}" 2>/dev/null || true
 du -sh "${MODELS_ROOT_DEFAULT}" 2>/dev/null || true
 du -sh "${PROCESSED_ROOT_DEFAULT}" 2>/dev/null || true
 
-echo "[NEXT] 只看占用: bash scripts/cleanup_check.sh"
-echo "[NEXT] 真清理示例: bash scripts/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3"
+echo "[NEXT] 只看占用: bash scripts/internal/cleanup_check.sh"
+echo "[NEXT] 真清理示例: bash scripts/internal/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3"

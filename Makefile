@@ -35,8 +35,8 @@ era5-0906:
 
 preprocess:
 	source configs/default.env
-	uv run python scripts/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
-	uv run python scripts/05_validate_inputs.py
+	uv run python scripts/internal/04_preprocess_era5_to_npy.py --date 20230709 --hour 00
+	uv run python scripts/internal/05_validate_inputs.py
 
 rollout-6h:
 	source configs/default.env
@@ -67,8 +67,8 @@ smoke:
 
 smoke-runtime:
 	source configs/default.env
-	uv run python scripts/05_validate_inputs.py
-	uv run python scripts/06_infer_smoke.py --step 6
+	uv run python scripts/internal/05_validate_inputs.py
+	uv run python scripts/internal/06_infer_smoke.py --step 6
 
 check:
 	uv run python tools/check_repo_health.py

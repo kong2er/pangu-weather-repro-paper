@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# dry-run: bash scripts/cleanup_check.sh
-# apply:   bash scripts/cleanup_check.sh --apply
+# dry-run: bash scripts/internal/cleanup_check.sh
+# apply:   bash scripts/internal/cleanup_check.sh --apply
 
 APPLY=0
 [[ "${1:-}" == "--apply" ]] && APPLY=1
@@ -49,4 +49,4 @@ find "$OUT" -type f \
 | while IFS= read -r f; do rm -f "$f"; echo "[DEL] $f"; done
 
 echo
-echo "[DONE] Re-run dry-run to confirm: bash scripts/cleanup_check.sh"
+echo "[DONE] Re-run dry-run to confirm: bash scripts/internal/cleanup_check.sh"

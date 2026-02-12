@@ -99,7 +99,7 @@ if product_pngs:
         var_arg = ",".join(cmd_vars) if cmd_vars else "z500,t2m,u10,v10,msl"
         hour_arg = ",".join(cmd_hours) if cmd_hours else "24,30"
         cmd = (
-            'bash scripts/run_product_bundle.sh '
+            'bash scripts/run_gpu.sh tools/plot_product_bundle.py '
             '--rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" '
             f'--vars {var_arg} --hours {hour_arg} --kinds {kind_arg} --style-profile standard --force'
         )
@@ -114,6 +114,6 @@ else:
     st.info("figures/product 为空。")
 
 st.code(
-    "bash scripts/run_product_bundle.sh --vars z500,t2m --hours 24,30",
+    "bash scripts/run_gpu.sh tools/plot_product_bundle.py --vars z500,t2m --hours 24,30",
     language="bash",
 )
