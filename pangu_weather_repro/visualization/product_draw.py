@@ -41,6 +41,23 @@ def _normalize_extent(extent: tuple[float, float, float, float] | None) -> tuple
     return tuple(float(x) for x in extent)
 
 
+def _is_global_extent(extent: tuple[float, float, float, float]) -> bool:
+    lon_min, lon_max, lat_min, lat_max = extent
+    return abs(lon_min - 0.0) < 1e-6 and abs(lon_max - 360.0) < 1e-6 and abs(lat_min + 90.0) < 1e-6 and abs(lat_max - 90.0) < 1e-6
+
+
+def _resolve_vector_stride(
+    extent: tuple[float, float, float, float],
+    stride: int | None,
+    vec_style: dict[str, Any],
+) -> int:
+    if stride is not None and int(stride) > 0:
+        return int(stride)
+    if _is_global_extent(extent):
+        return int(vec_style.get("stride_global", 10))
+    return int(vec_style.get("stride_regional", 12))
+
+
 def _resolve_fill_style(
     data: np.ndarray,
     var: str,
@@ -334,7 +351,7 @@ def draw_wind_vector(
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
     extent: tuple[float, float, float, float] | None = None,
-    stride: int = 18,
+    stride: int | None = None,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
@@ -361,6 +378,17 @@ def draw_wind_vector(
     extent = _normalize_extent(extent)
     speed = np.sqrt(u * u + v * v)
     vec_style = get_vector_style(style_profile)
+    stride_use = _resolve_vector_stride(extent, stride, vec_style)
+    quiver_kwargs = {
+        "color": str(vec_style.get("color", "black")),
+        "linewidth": float(vec_style.get("width", 0.0012)),
+        "scale": float(vec_style.get("scale", 650.0)),
+        "headwidth": float(vec_style.get("headwidth", 3.0)),
+        "headlength": float(vec_style.get("headlength", 3.8)),
+        "headaxislength": float(vec_style.get("headaxislength", 3.5)),
+        "alpha": float(vec_style.get("alpha", 0.78)),
+        "pivot": str(vec_style.get("pivot", "middle")),
+    }
 
     lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
     lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
@@ -384,17 +412,13 @@ def draw_wind_vector(
                 transform=ccrs.PlateCarree(),
                 alpha=0.82,
             )
-            ax.quiver(
-                lon2d[::stride, ::stride],
-                lat2d[::stride, ::stride],
-                u[::stride, ::stride],
-                v[::stride, ::stride],
+            q = ax.quiver(
+                lon2d[::stride_use, ::stride_use],
+                lat2d[::stride_use, ::stride_use],
+                u[::stride_use, ::stride_use],
+                v[::stride_use, ::stride_use],
                 transform=ccrs.PlateCarree(),
-                color=str(vec_style.get("color", "black")),
-                linewidth=float(vec_style.get("width", 0.0018)),
-                scale=float(vec_style.get("scale", 250.0)),
-                headwidth=float(vec_style.get("headwidth", 3.5)),
-                headlength=float(vec_style.get("headlength", 4.0)),
+                **quiver_kwargs,
             )
         except Exception as exc:
             geo_ok = False
@@ -403,16 +427,12 @@ def draw_wind_vector(
             figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
             fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
             bg = ax.imshow(speed, extent=extent, origin="upper", cmap="viridis", alpha=0.82)
-            ax.quiver(
-                lon2d[::stride, ::stride],
-                lat2d[::stride, ::stride],
-                u[::stride, ::stride],
-                v[::stride, ::stride],
-                color=str(vec_style.get("color", "black")),
-                linewidth=float(vec_style.get("width", 0.0018)),
-                scale=float(vec_style.get("scale", 250.0)),
-                headwidth=float(vec_style.get("headwidth", 3.5)),
-                headlength=float(vec_style.get("headlength", 4.0)),
+            q = ax.quiver(
+                lon2d[::stride_use, ::stride_use],
+                lat2d[::stride_use, ::stride_use],
+                u[::stride_use, ::stride_use],
+                v[::stride_use, ::stride_use],
+                **quiver_kwargs,
             )
             ax.set_xlabel("lon")
             ax.set_ylabel("lat")
@@ -421,16 +441,12 @@ def draw_wind_vector(
         figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         bg = ax.imshow(speed, extent=extent, origin="upper", cmap="viridis", alpha=0.82)
-        ax.quiver(
-            lon2d[::stride, ::stride],
-            lat2d[::stride, ::stride],
-            u[::stride, ::stride],
-            v[::stride, ::stride],
-            color=str(vec_style.get("color", "black")),
-            linewidth=float(vec_style.get("width", 0.0018)),
-            scale=float(vec_style.get("scale", 250.0)),
-            headwidth=float(vec_style.get("headwidth", 3.5)),
-            headlength=float(vec_style.get("headlength", 4.0)),
+        q = ax.quiver(
+            lon2d[::stride_use, ::stride_use],
+            lat2d[::stride_use, ::stride_use],
+            u[::stride_use, ::stride_use],
+            v[::stride_use, ::stride_use],
+            **quiver_kwargs,
         )
         ax.set_xlabel("lon")
         ax.set_ylabel("lat")
@@ -439,6 +455,16 @@ def draw_wind_vector(
     ax.set_title(t)
     cb = fig.colorbar(bg, ax=ax, fraction=0.046, pad=0.03)
     cb.set_label("m s^-1")
+    # Keep one stable legend arrow for readability across leads.
+    ax.quiverkey(
+        q,
+        X=float(vec_style.get("key_pos_x", 0.86)),
+        Y=float(vec_style.get("key_pos_y", 1.03)),
+        U=float(vec_style.get("key_speed", 10.0)),
+        label=str(vec_style.get("key_label", "10 m s^-1")),
+        labelpos="E",
+        coordinates="axes",
+    )
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -448,7 +474,13 @@ def draw_wind_vector(
         "lead_hour": int(lead_hour),
         "title": t,
         "dpi": int(dpi),
-        "stride": int(stride),
+        "stride": int(stride_use),
+        "vector_scale": float(quiver_kwargs["scale"]),
+        "vector_width": float(quiver_kwargs["linewidth"]),
+        "vector_alpha": float(quiver_kwargs["alpha"]),
+        "vector_pivot": str(quiver_kwargs["pivot"]),
+        "vector_key_speed": float(vec_style.get("key_speed", 10.0)),
+        "vector_key_label": str(vec_style.get("key_label", "10 m s^-1")),
         "style_profile": style_profile,
         "with_geo_requested": geo_requested,
         "with_geo": bool(geo_ok),
@@ -523,7 +555,7 @@ def draw_msl_wind(
     with_geo: bool = False,
     geo_assets_dir: str | None = None,
     extent: tuple[float, float, float, float] | None = None,
-    stride: int = 18,
+    stride: int | None = None,
     force: bool = False,
     extra_meta: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
@@ -559,6 +591,17 @@ def draw_msl_wind(
     vmax = float(fill_cfg.get("vmax", np.nanpercentile(msl_show, 99)))
     contour_cfg = get_style(style_profile).get("contour", {}).get("msl_wind", {})
     vec_style = get_vector_style(style_profile)
+    stride_use = _resolve_vector_stride(extent, stride, vec_style)
+    quiver_kwargs = {
+        "color": str(vec_style.get("color", "black")),
+        "linewidth": float(vec_style.get("width", 0.0012)),
+        "scale": float(vec_style.get("scale", 650.0)),
+        "headwidth": float(vec_style.get("headwidth", 3.0)),
+        "headlength": float(vec_style.get("headlength", 3.8)),
+        "headaxislength": float(vec_style.get("headaxislength", 3.5)),
+        "alpha": float(vec_style.get("alpha", 0.78)),
+        "pivot": str(vec_style.get("pivot", "middle")),
+    }
     fig_style = get_style(style_profile).get("figure", {})
     figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
 
@@ -591,17 +634,13 @@ def draw_msl_wind(
                     transform=ccrs.PlateCarree(),
                 )
                 ax.clabel(cs, inline=True, fontsize=int(contour_cfg.get("label_fontsize", 7)), fmt="%d")
-            ax.quiver(
-                lon2d[::stride, ::stride],
-                lat2d[::stride, ::stride],
-                u[::stride, ::stride],
-                v[::stride, ::stride],
+            q = ax.quiver(
+                lon2d[::stride_use, ::stride_use],
+                lat2d[::stride_use, ::stride_use],
+                u[::stride_use, ::stride_use],
+                v[::stride_use, ::stride_use],
                 transform=ccrs.PlateCarree(),
-                color=str(vec_style.get("color", "black")),
-                linewidth=float(vec_style.get("width", 0.0018)),
-                scale=float(vec_style.get("scale", 250.0)),
-                headwidth=float(vec_style.get("headwidth", 3.5)),
-                headlength=float(vec_style.get("headlength", 4.0)),
+                **quiver_kwargs,
             )
         except Exception as exc:
             geo_ok = False
@@ -618,16 +657,12 @@ def draw_msl_wind(
                     linewidths=float(contour_cfg.get("linewidth", 0.6)),
                 )
                 ax.clabel(cs, inline=True, fontsize=int(contour_cfg.get("label_fontsize", 7)), fmt="%d")
-            ax.quiver(
-                lon2d[::stride, ::stride],
-                lat2d[::stride, ::stride],
-                u[::stride, ::stride],
-                v[::stride, ::stride],
-                color=str(vec_style.get("color", "black")),
-                linewidth=float(vec_style.get("width", 0.0018)),
-                scale=float(vec_style.get("scale", 250.0)),
-                headwidth=float(vec_style.get("headwidth", 3.5)),
-                headlength=float(vec_style.get("headlength", 4.0)),
+            q = ax.quiver(
+                lon2d[::stride_use, ::stride_use],
+                lat2d[::stride_use, ::stride_use],
+                u[::stride_use, ::stride_use],
+                v[::stride_use, ::stride_use],
+                **quiver_kwargs,
             )
             ax.set_xlabel("lon")
             ax.set_ylabel("lat")
@@ -644,16 +679,12 @@ def draw_msl_wind(
                 linewidths=float(contour_cfg.get("linewidth", 0.6)),
             )
             ax.clabel(cs, inline=True, fontsize=int(contour_cfg.get("label_fontsize", 7)), fmt="%d")
-        ax.quiver(
-            lon2d[::stride, ::stride],
-            lat2d[::stride, ::stride],
-            u[::stride, ::stride],
-            v[::stride, ::stride],
-            color=str(vec_style.get("color", "black")),
-            linewidth=float(vec_style.get("width", 0.0018)),
-            scale=float(vec_style.get("scale", 250.0)),
-            headwidth=float(vec_style.get("headwidth", 3.5)),
-            headlength=float(vec_style.get("headlength", 4.0)),
+        q = ax.quiver(
+            lon2d[::stride_use, ::stride_use],
+            lat2d[::stride_use, ::stride_use],
+            u[::stride_use, ::stride_use],
+            v[::stride_use, ::stride_use],
+            **quiver_kwargs,
         )
         ax.set_xlabel("lon")
         ax.set_ylabel("lat")
@@ -662,6 +693,15 @@ def draw_msl_wind(
     ax.set_title(t)
     cb = fig.colorbar(bg, ax=ax, fraction=0.046, pad=0.03)
     cb.set_label(unit_from_style or "hPa")
+    ax.quiverkey(
+        q,
+        X=float(vec_style.get("key_pos_x", 0.86)),
+        Y=float(vec_style.get("key_pos_y", 1.03)),
+        U=float(vec_style.get("key_speed", 10.0)),
+        label=str(vec_style.get("key_label", "10 m s^-1")),
+        labelpos="E",
+        coordinates="axes",
+    )
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -671,7 +711,13 @@ def draw_msl_wind(
         "lead_hour": int(lead_hour),
         "title": t,
         "dpi": int(dpi),
-        "stride": int(stride),
+        "stride": int(stride_use),
+        "vector_scale": float(quiver_kwargs["scale"]),
+        "vector_width": float(quiver_kwargs["linewidth"]),
+        "vector_alpha": float(quiver_kwargs["alpha"]),
+        "vector_pivot": str(quiver_kwargs["pivot"]),
+        "vector_key_speed": float(vec_style.get("key_speed", 10.0)),
+        "vector_key_label": str(vec_style.get("key_label", "10 m s^-1")),
         "style_profile": style_profile,
         "msl_vmin": vmin,
         "msl_vmax": vmax,

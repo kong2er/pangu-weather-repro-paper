@@ -162,6 +162,12 @@ def main() -> None:
     p.add_argument("--geo-assets-dir", default="assets/geo", help="Optional geo assets directory.")
     p.add_argument("--style-profile", default="standard", help="Style profile for product figures (default: standard).")
     p.add_argument(
+        "--vector-step",
+        type=int,
+        default=0,
+        help="Optional vector stride override (0 means use style default).",
+    )
+    p.add_argument(
         "--extent",
         default="",
         help="Optional map extent lon_min,lon_max,lat_min,lat_max (e.g. 95,145,10,50).",
@@ -201,6 +207,8 @@ def main() -> None:
     else:
         print("[GEO] disabled")
     print(f"[STYLE] {args.style_profile}")
+    if args.vector_step > 0:
+        print(f"[VECTOR] step override={args.vector_step}")
     if extent is not None:
         print(f"[EXTENT] {extent}")
 
@@ -300,6 +308,7 @@ def main() -> None:
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
                     extent=extent,
+                    stride=(args.vector_step if args.vector_step > 0 else None),
                     force=args.force,
                     extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
                 )
@@ -362,6 +371,7 @@ def main() -> None:
                     with_geo=args.with_geo,
                     geo_assets_dir=args.geo_assets_dir,
                     extent=extent,
+                    stride=(args.vector_step if args.vector_step > 0 else None),
                     force=args.force,
                     extra_meta={"rollout_dir": rollout_dir, "source": "plot_product_bundle", "extent_cli": list(extent) if extent else []},
                 )
