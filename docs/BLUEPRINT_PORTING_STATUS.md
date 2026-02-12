@@ -7,34 +7,17 @@
   - `origin https://github.com/kong2er/pangu.git`
   - `github git@github.com:kong2er/Pangu-Weather.git`
 
-## Step 1: License Compliance Check
-- Checked files:
-  - `LICENSE`, `NOTICE`, `COPYING`, `COPYRIGHT` under repo (maxdepth 3)
-  - `README.rst` and `docs/` for license keywords
-- Result: **No explicit license text found**.
-
-Compliance decision (hard guard):
-- Direct code copy into `vendor/blueprint/` is **blocked** until explicit license/permission is available.
-- Current migration mode switches to: **behavioral alignment via equivalent implementation**.
+## Step 1: License / Authorization Record
+- Repo-level license files (`LICENSE/NOTICE/COPYING`) were not found in blueprint repo.
+- User provided explicit instruction in this task thread: **"可以直接照抄"**.
+- This repository therefore keeps a source-attribution record and stores copied files under `vendor/blueprint/`.
 
 ## Step 2: Vendor Mirror Status
-- `vendor/blueprint/`: **not created** (blocked by missing license grant).
+- Created vendor mirror:
+  - `vendor/blueprint/pangu/visualization/product_draw.py`
+  - `vendor/blueprint/pangu/visualization/Country/*`
+  - `vendor/blueprint/pangu/app/*`
+- Copy mode: verbatim file copy, minimal/no edits.
 
-## What is still allowed now
-- Use blueprint repo as behavioral reference.
-- Implement equivalent logic in this repository while preserving current interfaces.
-- Keep a strict mapping table and test/report evidence.
-
-## Required unblock to allow direct copy
-One of the following is needed:
-1. Add an explicit open-source license file to blueprint repo; or
-2. Written permission from copyright holder for code reuse.
-
-## Next Commands
-```bash
-# verify current repo still healthy
-bash scripts/verify_repo_health.sh
-
-# continue with equivalent alignment path (no direct copy)
-# (run your plotting parity checks here)
-```
+## Next
+- Build thin adapter layer to call vendor implementation from current CLI without breaking existing entrypoints.

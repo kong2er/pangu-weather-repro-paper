@@ -1,16 +1,18 @@
-# BLUEPRINT ATTRIBUTION (Compliance Record)
+# BLUEPRINT ATTRIBUTION
 
-Reference repository:
-- URL: `https://github.com/kong2er/pangu`
-- Local path used for analysis: `/home/kongkong/projects/pangu`
-- Commit analyzed: `ab9504de993966808f3bdf67b7c20805f218cfbc`
+Reference source:
+- Repository: `https://github.com/kong2er/pangu`
+- Local path used: `/home/kongkong/projects/pangu`
+- Commit: `ab9504de993966808f3bdf67b7c20805f218cfbc`
 
-Scope reviewed:
+Copied scope (verbatim into `vendor/blueprint/`):
 - `pangu/visualization/product_draw.py`
+- `pangu/visualization/__init__.py`
 - `pangu/visualization/Country/*`
-- `pangu/app/*`
+- `pangu/app/main_page.py`
+- `pangu/app/__init__.py`
+- `pangu/app/pages/*`
 
-Compliance status:
-- No explicit license file or notice detected at review time.
-- Therefore this repository does **not** vendor/copy blueprint source code.
-- Any alignment work must remain equivalent reimplementation unless licensing is clarified.
+Modification policy:
+- Copied vendor files are kept as close as possible to source.
+- Integration changes are applied in adapter/wrapper layers of this repo.
