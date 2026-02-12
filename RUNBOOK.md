@@ -1,32 +1,34 @@
 # RUNBOOK (Stage-by-Stage Reproduction)
 
-本手册只服务复现执行。内部治理材料已归档到 `docs/_internal/`。
+本手册给复现人员使用。按 S1-S8 顺序执行即可。
 
-## 0. 预设
+## S0 预设
 ```bash
 cd /root/projects/pangu-weather-repro-uv
 source configs/default.env
 ```
 
 ## S1 环境与依赖
-CPU：
+CPU 环境：
 ```bash
 bash scripts/create_cpu_venv.sh
 source scripts/env_cpu.sh
 ```
-GPU：
+
+GPU 环境：
 ```bash
 bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh
 ```
-可选扩展依赖：
+
+可选依赖：
 ```bash
 bash scripts/install_extras.sh rmse
 bash scripts/install_extras.sh plots --force
 bash scripts/install_extras.sh streamlit
 ```
 
-验收：
+阶段验收：
 ```bash
 bash scripts/verify_repo_health.sh
 ```
@@ -35,13 +37,13 @@ bash scripts/verify_repo_health.sh
 ```bash
 scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
-预期：输出 `contracts smoke ok`。
+通过标准：输出 `contracts smoke ok`。
 
-## S3 GPU smoke（主链起点）
+## S3 GPU smoke
 ```bash
 bash scripts/final_verify.sh
 ```
-预期：至少通过 Day3 smoke、Day5 RMSE、Day6 plots。
+通过标准：Day3/Day5/Day6 子步骤通过。
 
 ## S4 84h 推理
 ```bash
@@ -52,33 +54,43 @@ scripts/run_gpu.sh tools/run_forecast.py \
   --noarena --threads 1 \
   --out-dir "$OUTPUT_ROOT/forecast_84h_$(date +%Y%m%d_%H%M%S)"
 ```
+通过标准：目标输出目录含 `forecast_report.json`。
 
-## S5 360h 推理（稳态推荐）
+## S5 360h 推理（稳态）
 ```bash
 bash scripts/run_360h_split.sh --auto-retry
 ```
-说明：自动分段 + 失败降载重试（避免 OOM 全盘中断）。
+说明：自动分段与自动降载重试，优先保证跑通。
 
 ## S6 RMSE + Paper 图
-主线已在 `final_verify.sh` 内执行。单独跑可用内部脚本：
+推荐：
+```bash
+bash scripts/final_verify.sh
+```
+
+仅重跑该阶段（高级用法）：
 ```bash
 bash scripts/internal/run_day5_rmse.sh --force
 bash scripts/internal/run_day6_plots.sh --force
 ```
 
 ## S7 产品图族 + Streamlit
-一键产品图：
+产品图（默认稳定实现）：
 ```bash
 bash scripts/run_product_all.sh \
   --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" \
-  --hours 24,30 --impl auto --force
+  --hours 24,30 \
+  --impl auto \
+  --force
 ```
 
 蓝本对齐实现：
 ```bash
 bash scripts/run_product_all.sh \
   --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" \
-  --hours 24,30 --impl blueprint --force
+  --hours 24,30 \
+  --impl blueprint \
+  --force
 ```
 
 启动页面：
@@ -91,9 +103,9 @@ bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
 bash scripts/verify_repo_health.sh
 bash scripts/final_verify.sh --with-e-stage --e-stage-force
 ```
-预期：`FINAL VERIFY PASS`。
+通过标准：输出 `FINAL VERIFY PASS`。
 
-## 排错（最常见）
+## 常见故障排查
 1. `CUDAExecutionProvider missing`
 ```bash
 bash scripts/create_gpu_venv.sh --update
@@ -101,7 +113,7 @@ source scripts/env_gpu.sh
 ```
 
 2. `out_dir exists`
-- 加 `--force`，或切换新 `--out-dir`。
+- 加 `--force`，或指定新的 `--out-dir`。
 
 3. 360h OOM
 ```bash
@@ -115,19 +127,15 @@ scripts/run_gpu.sh -m pip install -U cmaps pandas xarray
 ```
 
 5. Streamlit 外网 503
-- 优先 SSH 隧道：本地访问 `http://127.0.0.1:8501`。
+- 使用 SSH 隧道，浏览器访问 `http://127.0.0.1:8501`。
 
-## 清理空间（关机前）
-只看占用：
+## 关机前清理（可选）
 ```bash
 bash scripts/internal/cleanup_check.sh
-```
-真清理（默认保守保留，建议先 dry-run）：
-```bash
 bash scripts/internal/cleanup_autodl.sh --dry-run
 bash scripts/internal/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
 ```
 
-## 备注
-- 官方入口在 `scripts/`。
-- 研发/归档入口在 `scripts/internal/` 与 `docs/_internal/`，不建议复现人员直接使用。
+## 说明
+- 对外只需 `scripts/` 顶层入口。
+- `scripts/internal/` 与 `docs/_internal/` 是内部流程，不影响复现主链。
