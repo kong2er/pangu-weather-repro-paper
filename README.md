@@ -5,6 +5,9 @@
 - `RUNBOOK.md`：S1-S8 详细步骤与排错
 - `docs/DELIVERY_SUMMARY.md`：阶段目标、产物、验收矩阵
 
+功能调用速查：
+- `docs/FUNCTION_CALL_MANUAL_ZH.md`：按“功能 -> 命令 -> 实际意义”快速调用
+
 ## 最短复现路径（新机器推荐）
 ```bash
 cd /root/projects/pangu-weather-repro-uv
