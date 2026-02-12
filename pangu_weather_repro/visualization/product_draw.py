@@ -19,25 +19,12 @@ from pangu_weather_repro.visualization.geo import (
     resolve_geo_assets_dir,
     try_import_cartopy,
 )
-
-# 产品图默认样式（G1）：优先保证可复现一致性。
-# 若调用方显式传 vmin/vmax/cmap，则以调用方为准。
-STYLE_PRESETS: dict[str, dict[str, Any]] = {
-    "standard": {
-        "fill_defaults": {
-            "z500": {"cmap": "turbo", "vmin": 47000.0, "vmax": 59000.0},
-            "t2m": {"cmap": "coolwarm", "vmin": 220.0, "vmax": 320.0},
-            "u10": {"cmap": "viridis", "vmin": -30.0, "vmax": 30.0},
-            "v10": {"cmap": "viridis", "vmin": -30.0, "vmax": 30.0},
-            "wind_speed": {"cmap": "viridis", "vmin": 0.0, "vmax": 35.0},
-            "msl": {"cmap": "coolwarm", "vmin": 95000.0, "vmax": 105000.0},
-        },
-        "diff_defaults": {
-            "z500": {"cmap": "RdBu_r", "vlim": 300.0},
-        },
-    }
-}
-
+from pangu_weather_repro.visualization.style import (
+    get_diff_style,
+    get_fill_style,
+    get_style,
+    get_vector_style,
+)
 
 def _auto_range(data: np.ndarray, vmin: float | None, vmax: float | None) -> tuple[float, float]:
     if vmin is not None and vmax is not None:
@@ -63,8 +50,7 @@ def _resolve_fill_style(
     vmin: float | None,
     vmax: float | None,
 ) -> tuple[str, float, float, str]:
-    profile = STYLE_PRESETS.get(style_profile, STYLE_PRESETS["standard"])
-    defaults = profile.get("fill_defaults", {}).get(var, {})
+    defaults = get_fill_style(var, style_profile)
     cmap_use = str(cmap if cmap is not None else defaults.get("cmap", "turbo"))
     vmin_default = defaults.get("vmin")
     vmax_default = defaults.get("vmax")
@@ -89,8 +75,7 @@ def _resolve_diff_style(
     vlim: float | None,
     diff: np.ndarray,
 ) -> tuple[str, float, float, str]:
-    profile = STYLE_PRESETS.get(style_profile, STYLE_PRESETS["standard"])
-    defaults = profile.get("diff_defaults", {}).get(var, {})
+    defaults = get_diff_style(var, style_profile)
     cmap_use = str(cmap if cmap is not None else defaults.get("cmap", "RdBu_r"))
     if vlim is not None:
         vmax = float(vlim)
@@ -101,6 +86,25 @@ def _resolve_diff_style(
     vmax = float(np.nanpercentile(np.abs(diff), 99))
     vmax = max(vmax, 1e-6)
     return cmap_use, -vmax, vmax, "percentile"
+
+
+def _convert_for_display(var: str, data: np.ndarray, style_profile: str) -> tuple[np.ndarray, str]:
+    """Convert variable values only for display (no model math change)."""
+    fill = get_fill_style(var, style_profile)
+    unit_label = str(fill.get("unit_label", ""))
+    if fill.get("convert_from_pa"):
+        return np.asarray(data, dtype=np.float32) / 100.0, unit_label
+    return np.asarray(data, dtype=np.float32), unit_label
+
+
+def _series_stats(data: np.ndarray) -> dict[str, float]:
+    arr = np.asarray(data, dtype=np.float32)
+    return {
+        "data_min": float(np.nanmin(arr)),
+        "data_max": float(np.nanmax(arr)),
+        "data_mean": float(np.nanmean(arr)),
+        "data_std": float(np.nanstd(arr)),
+    }
 
 
 def draw_global_fill(
@@ -136,9 +140,11 @@ def draw_global_fill(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
-    data = np.asarray(data)
+    raw_data = np.asarray(data)
+    data, unit_from_style = _convert_for_display(var, raw_data, style_profile)
     if data.ndim != 2:
         raise ValueError(f"draw_global_fill expects 2D array, got {data.shape}")
+    units_use = units or unit_from_style
 
     ccrs, cfeature = try_import_cartopy()
     assets_dir = resolve_geo_assets_dir(geo_assets_dir)
@@ -155,10 +161,12 @@ def draw_global_fill(
         vmax=vmax,
     )
     extent = _normalize_extent(extent)
+    fig_style = get_style(style_profile).get("figure", {})
+    figsize = tuple(fig_style.get("figsize_fill", (7.0, 3.6)))
 
     if geo_ok:
         try:
-            fig = plt.figure(figsize=(7.0, 3.6), dpi=dpi)
+            fig = plt.figure(figsize=figsize, dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines(linewidth=0.5)
@@ -177,23 +185,23 @@ def draw_global_fill(
             # cartopy may import successfully but fail at runtime if scipy/pykdtree is missing.
             geo_ok = False
             geo_error = str(exc)
-            fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
+            fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
             im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap_use, vmin=vmin_use, vmax=vmax_use)
             ax.set_xlabel("lon")
             ax.set_ylabel("lat")
     else:
-        fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         im = ax.imshow(data, extent=extent, origin="upper", cmap=cmap_use, vmin=vmin_use, vmax=vmax_use)
         ax.set_xlabel("lon")
         ax.set_ylabel("lat")
 
     t = title or f"{var} t+{lead_hour:03d}"
-    if units:
-        t += f" ({units})"
+    if units_use:
+        t += f" ({units_use})"
     ax.set_title(t)
     cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    if units:
-        cb.set_label(units)
+    if units_use:
+        cb.set_label(units_use)
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -202,7 +210,7 @@ def draw_global_fill(
         "type": "global_fill",
         "var": var,
         "lead_hour": int(lead_hour),
-        "units": units,
+        "units": units_use,
         "title": t,
         "cmap": cmap_use,
         "vmin": float(vmin_use),
@@ -218,6 +226,7 @@ def draw_global_fill(
         "extent": list(extent),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
+    meta.update(_series_stats(data))
     if extra_meta:
         meta.update(extra_meta)
 
@@ -253,12 +262,14 @@ def draw_diff_fill(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
-    pred = np.asarray(pred, dtype=np.float32)
-    ref = np.asarray(ref, dtype=np.float32)
+    pred_raw = np.asarray(pred, dtype=np.float32)
+    ref_raw = np.asarray(ref, dtype=np.float32)
+    pred_show, unit_from_style = _convert_for_display(var, pred_raw, style_profile)
+    ref_show, _ = _convert_for_display(var, ref_raw, style_profile)
     if pred.shape != ref.shape or pred.ndim != 2:
         raise ValueError(f"draw_diff_fill expects two 2D arrays with same shape, got {pred.shape} vs {ref.shape}")
 
-    diff = pred - ref
+    diff = pred_show - ref_show
     cmap_use, vmin, vmax, range_source = _resolve_diff_style(
         var,
         style_profile=style_profile,
@@ -268,17 +279,20 @@ def draw_diff_fill(
     )
 
     extent = _normalize_extent(extent)
-    fig, ax = plt.subplots(figsize=(7.0, 3.6), dpi=dpi)
+    fig_style = get_style(style_profile).get("figure", {})
+    figsize = tuple(fig_style.get("figsize_fill", (7.0, 3.6)))
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     im = ax.imshow(diff, extent=extent, origin="upper", cmap=cmap_use, vmin=vmin, vmax=vmax)
     ax.set_xlabel("lon")
     ax.set_ylabel("lat")
     t = title or f"{var} pred-ref t+{lead_hour:03d}"
-    if units:
-        t += f" ({units})"
+    units_use = units or unit_from_style
+    if units_use:
+        t += f" ({units_use})"
     ax.set_title(t)
     cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    if units:
-        cb.set_label(units)
+    if units_use:
+        cb.set_label(units_use)
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -287,7 +301,7 @@ def draw_diff_fill(
         "type": "diff_fill",
         "var": var,
         "lead_hour": int(lead_hour),
-        "units": units,
+        "units": units_use,
         "title": t,
         "cmap": cmap_use,
         "vmin": vmin,
@@ -298,6 +312,7 @@ def draw_diff_fill(
         "style_profile": style_profile,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
+    meta.update(_series_stats(diff))
     if extra_meta:
         meta.update(extra_meta)
 
@@ -345,6 +360,7 @@ def draw_wind_vector(
     geo_error = ""
     extent = _normalize_extent(extent)
     speed = np.sqrt(u * u + v * v)
+    vec_style = get_vector_style(style_profile)
 
     lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
     lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
@@ -352,7 +368,9 @@ def draw_wind_vector(
 
     if geo_ok:
         try:
-            fig = plt.figure(figsize=(7.2, 3.8), dpi=dpi)
+            fig_style = get_style(style_profile).get("figure", {})
+            figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
+            fig = plt.figure(figsize=figsize, dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines(linewidth=0.5)
@@ -372,37 +390,47 @@ def draw_wind_vector(
                 u[::stride, ::stride],
                 v[::stride, ::stride],
                 transform=ccrs.PlateCarree(),
-                color="white",
-                linewidth=0.25,
-                scale=250.0,
+                color=str(vec_style.get("color", "black")),
+                linewidth=float(vec_style.get("width", 0.0018)),
+                scale=float(vec_style.get("scale", 250.0)),
+                headwidth=float(vec_style.get("headwidth", 3.5)),
+                headlength=float(vec_style.get("headlength", 4.0)),
             )
         except Exception as exc:
             geo_ok = False
             geo_error = str(exc)
-            fig, ax = plt.subplots(figsize=(7.2, 3.8), dpi=dpi)
+            fig_style = get_style(style_profile).get("figure", {})
+            figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
+            fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
             bg = ax.imshow(speed, extent=extent, origin="upper", cmap="viridis", alpha=0.82)
             ax.quiver(
                 lon2d[::stride, ::stride],
                 lat2d[::stride, ::stride],
                 u[::stride, ::stride],
                 v[::stride, ::stride],
-                color="white",
-                linewidth=0.25,
-                scale=250.0,
+                color=str(vec_style.get("color", "black")),
+                linewidth=float(vec_style.get("width", 0.0018)),
+                scale=float(vec_style.get("scale", 250.0)),
+                headwidth=float(vec_style.get("headwidth", 3.5)),
+                headlength=float(vec_style.get("headlength", 4.0)),
             )
             ax.set_xlabel("lon")
             ax.set_ylabel("lat")
     else:
-        fig, ax = plt.subplots(figsize=(7.2, 3.8), dpi=dpi)
+        fig_style = get_style(style_profile).get("figure", {})
+        figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         bg = ax.imshow(speed, extent=extent, origin="upper", cmap="viridis", alpha=0.82)
         ax.quiver(
             lon2d[::stride, ::stride],
             lat2d[::stride, ::stride],
             u[::stride, ::stride],
             v[::stride, ::stride],
-            color="white",
-            linewidth=0.25,
-            scale=250.0,
+            color=str(vec_style.get("color", "black")),
+            linewidth=float(vec_style.get("width", 0.0018)),
+            scale=float(vec_style.get("scale", 250.0)),
+            headwidth=float(vec_style.get("headwidth", 3.5)),
+            headlength=float(vec_style.get("headlength", 4.0)),
         )
         ax.set_xlabel("lon")
         ax.set_ylabel("lat")
@@ -432,6 +460,7 @@ def draw_wind_vector(
         "speed_max": float(np.nanmax(speed)),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
+    meta.update(_series_stats(speed))
     if extra_meta:
         meta.update(extra_meta)
 
@@ -507,11 +536,11 @@ def draw_msl_wind(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
-    msl = np.asarray(msl, dtype=np.float32)
+    msl_raw = np.asarray(msl, dtype=np.float32)
     u = np.asarray(u, dtype=np.float32)
     v = np.asarray(v, dtype=np.float32)
-    if msl.ndim != 2 or u.shape != v.shape or u.shape != msl.shape:
-        raise ValueError(f"draw_msl_wind expects same-shape 2D arrays, got msl={msl.shape}, u={u.shape}, v={v.shape}")
+    if msl_raw.ndim != 2 or u.shape != v.shape or u.shape != msl_raw.shape:
+        raise ValueError(f"draw_msl_wind expects same-shape 2D arrays, got msl={msl_raw.shape}, u={u.shape}, v={v.shape}")
 
     ccrs, cfeature = try_import_cartopy()
     assets_dir = resolve_geo_assets_dir(geo_assets_dir)
@@ -524,64 +553,107 @@ def draw_msl_wind(
     lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
     lon2d, lat2d = np.meshgrid(lon, lat)
 
-    vmin = float(np.nanpercentile(msl, 1))
-    vmax = float(np.nanpercentile(msl, 99))
+    msl_show, unit_from_style = _convert_for_display("msl", msl_raw, style_profile)
+    fill_cfg = get_fill_style("msl", style_profile)
+    vmin = float(fill_cfg.get("vmin", np.nanpercentile(msl_show, 1)))
+    vmax = float(fill_cfg.get("vmax", np.nanpercentile(msl_show, 99)))
+    contour_cfg = get_style(style_profile).get("contour", {}).get("msl_wind", {})
+    vec_style = get_vector_style(style_profile)
+    fig_style = get_style(style_profile).get("figure", {})
+    figsize = tuple(fig_style.get("figsize_vector", (7.2, 3.8)))
 
     if geo_ok:
         try:
-            fig = plt.figure(figsize=(7.2, 3.8), dpi=dpi)
+            fig = plt.figure(figsize=figsize, dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines(linewidth=0.5)
             if cfeature is not None:
                 ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
             bg = ax.imshow(
-                msl,
+                msl_show,
                 extent=extent,
                 origin="upper",
-                cmap="coolwarm",
+                cmap=str(fill_cfg.get("cmap", "coolwarm")),
                 vmin=vmin,
                 vmax=vmax,
                 transform=ccrs.PlateCarree(),
                 alpha=0.88,
             )
+            if contour_cfg.get("enabled", True):
+                cs = ax.contour(
+                    lon2d,
+                    lat2d,
+                    msl_show,
+                    levels=contour_cfg.get("levels", [960, 980, 1000, 1020, 1040]),
+                    colors=str(contour_cfg.get("color", "k")),
+                    linewidths=float(contour_cfg.get("linewidth", 0.6)),
+                    transform=ccrs.PlateCarree(),
+                )
+                ax.clabel(cs, inline=True, fontsize=int(contour_cfg.get("label_fontsize", 7)), fmt="%d")
             ax.quiver(
                 lon2d[::stride, ::stride],
                 lat2d[::stride, ::stride],
                 u[::stride, ::stride],
                 v[::stride, ::stride],
                 transform=ccrs.PlateCarree(),
-                color="black",
-                linewidth=0.25,
-                scale=250.0,
+                color=str(vec_style.get("color", "black")),
+                linewidth=float(vec_style.get("width", 0.0018)),
+                scale=float(vec_style.get("scale", 250.0)),
+                headwidth=float(vec_style.get("headwidth", 3.5)),
+                headlength=float(vec_style.get("headlength", 4.0)),
             )
         except Exception as exc:
             geo_ok = False
             geo_error = str(exc)
-            fig, ax = plt.subplots(figsize=(7.2, 3.8), dpi=dpi)
-            bg = ax.imshow(msl, extent=extent, origin="upper", cmap="coolwarm", vmin=vmin, vmax=vmax, alpha=0.88)
+            fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+            bg = ax.imshow(msl_show, extent=extent, origin="upper", cmap=str(fill_cfg.get("cmap", "coolwarm")), vmin=vmin, vmax=vmax, alpha=0.88)
+            if contour_cfg.get("enabled", True):
+                cs = ax.contour(
+                    lon2d,
+                    lat2d,
+                    msl_show,
+                    levels=contour_cfg.get("levels", [960, 980, 1000, 1020, 1040]),
+                    colors=str(contour_cfg.get("color", "k")),
+                    linewidths=float(contour_cfg.get("linewidth", 0.6)),
+                )
+                ax.clabel(cs, inline=True, fontsize=int(contour_cfg.get("label_fontsize", 7)), fmt="%d")
             ax.quiver(
                 lon2d[::stride, ::stride],
                 lat2d[::stride, ::stride],
                 u[::stride, ::stride],
                 v[::stride, ::stride],
-                color="black",
-                linewidth=0.25,
-                scale=250.0,
+                color=str(vec_style.get("color", "black")),
+                linewidth=float(vec_style.get("width", 0.0018)),
+                scale=float(vec_style.get("scale", 250.0)),
+                headwidth=float(vec_style.get("headwidth", 3.5)),
+                headlength=float(vec_style.get("headlength", 4.0)),
             )
             ax.set_xlabel("lon")
             ax.set_ylabel("lat")
     else:
-        fig, ax = plt.subplots(figsize=(7.2, 3.8), dpi=dpi)
-        bg = ax.imshow(msl, extent=extent, origin="upper", cmap="coolwarm", vmin=vmin, vmax=vmax, alpha=0.88)
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        bg = ax.imshow(msl_show, extent=extent, origin="upper", cmap=str(fill_cfg.get("cmap", "coolwarm")), vmin=vmin, vmax=vmax, alpha=0.88)
+        if contour_cfg.get("enabled", True):
+            cs = ax.contour(
+                lon2d,
+                lat2d,
+                msl_show,
+                levels=contour_cfg.get("levels", [960, 980, 1000, 1020, 1040]),
+                colors=str(contour_cfg.get("color", "k")),
+                linewidths=float(contour_cfg.get("linewidth", 0.6)),
+            )
+            ax.clabel(cs, inline=True, fontsize=int(contour_cfg.get("label_fontsize", 7)), fmt="%d")
         ax.quiver(
             lon2d[::stride, ::stride],
             lat2d[::stride, ::stride],
             u[::stride, ::stride],
             v[::stride, ::stride],
-            color="black",
-            linewidth=0.25,
-            scale=250.0,
+            color=str(vec_style.get("color", "black")),
+            linewidth=float(vec_style.get("width", 0.0018)),
+            scale=float(vec_style.get("scale", 250.0)),
+            headwidth=float(vec_style.get("headwidth", 3.5)),
+            headlength=float(vec_style.get("headlength", 4.0)),
         )
         ax.set_xlabel("lon")
         ax.set_ylabel("lat")
@@ -589,7 +661,7 @@ def draw_msl_wind(
     t = title or f"msl+uv10 t+{lead_hour:03d}"
     ax.set_title(t)
     cb = fig.colorbar(bg, ax=ax, fraction=0.046, pad=0.03)
-    cb.set_label("Pa")
+    cb.set_label(unit_from_style or "hPa")
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -603,6 +675,7 @@ def draw_msl_wind(
         "style_profile": style_profile,
         "msl_vmin": vmin,
         "msl_vmax": vmax,
+        "msl_unit": unit_from_style or "hPa",
         "with_geo_requested": geo_requested,
         "with_geo": bool(geo_ok),
         "geo_assets_dir": str(assets_dir) if assets_dir else "",
@@ -611,6 +684,7 @@ def draw_msl_wind(
         "extent": list(extent),
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
+    meta.update(_series_stats(msl_show))
     if extra_meta:
         meta.update(extra_meta)
 

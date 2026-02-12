@@ -26,7 +26,7 @@ from pangu_weather_repro.visualization.product_draw import (
 SURFACE_INDEX = {name: idx for idx, name in enumerate(SURFACE_VARS)}
 UNITS_MAP = {
     "z500": "m^2 s^-2",
-    "msl": "Pa",
+    "msl": "hPa",
     "u10": "m s^-1",
     "v10": "m s^-1",
     "t2m": "K",

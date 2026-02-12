@@ -228,9 +228,14 @@ scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4
 ```
 - 无 `cartopy/scipy` 或无地理资源时会自动回退到普通绘图，不会中断流程
 - 地理资源放置说明见：`assets/geo/README.md`
+- 样式与数值对齐差异表：`docs/PLOT_ALIGNMENT_GAP.md`
 - 建议安装绘图扩展（含 `scipy`，提升地理绘图稳定性）：
 ```bash
 bash scripts/install_extras.sh plots --force
+```
+- 对齐验收报告（可选，若有蓝本参考图可加 `--ref-dir`）：
+```bash
+scripts/run_gpu.sh tools/compare_plots_against_reference.py --pred-dir figures/product --out artifacts/day7/plot_alignment_report.md
 ```
 
 ## G 阶段推荐流程（蓝本对齐）
