@@ -220,3 +220,8 @@ bash scripts/run_product_bundle.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h"
 ```bash
 bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_STAGE_REPORT.md
 ```
+
+## 16. 仓库轻量健康检查（不跑重推理）
+```bash
+bash scripts/verify_repo_health.sh
+```

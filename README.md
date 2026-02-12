@@ -245,6 +245,7 @@ bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_S
 - 第三条用于生成并核查 E 阶段报告。
 
 ## 收官验收清单（建议逐条勾选）
+0. 仓库轻量健康检查：`bash scripts/verify_repo_health.sh`
 1. CPU 烟雾测试通过：`scripts/run_cpu.sh -m pangu_weather_repro.smoke`
 2. GPU 最小链路通过：`scripts/regression_minimal.sh`
 3. 360h 分段推理通过：`scripts/run_360h_split.sh --auto-retry`
