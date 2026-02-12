@@ -21,6 +21,14 @@
 - 忽略规则：在 `.gitignore` 固化 `figures/*`、`outputs/*`、`artifacts/day5/*`、`artifacts/day7/*.csv`，并对白名单占位文件放行。
 - 后续（Step3+）：将非官方入口脚本逐步归档到 `tools/legacy/`，`scripts/` 仅保留官方入口（不在本次提交执行）。
 
+已执行的 Step3（小步）：
+- `tools/day4_rollout_codex.py` -> `tools/legacy/day4_rollout_codex.py`
+- `tools/day3_smoke_gpu_step6.sh` -> `tools/legacy/day3_smoke_gpu_step6.sh`
+
+中文注释：
+- 两个文件均未被 README/RUNBOOK/tests/scripts 引用，归档后不影响主链。
+- 归档而非删除，确保可追溯与可回滚。
+
 ## 4) 不破坏约束
 - 不改核心推理/评估/绘图算法。
 - 不删除任何可运行链路依赖脚本。
