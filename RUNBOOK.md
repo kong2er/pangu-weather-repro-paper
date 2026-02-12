@@ -228,7 +228,4 @@ bash scripts/verify_repo_health.sh
 
 阶段化总览（S1-S8）：`docs/DELIVERY_SUMMARY.md`
 快速打印 8 阶段命令：`scripts/show_stage_commands.sh`
-入口分层矩阵：`docs/ENTRYPOINT_MATRIX.md`
-蓝本差异自动核查：`scripts/run_kong2er_gap_check.sh`
-蓝本页面映射：`docs/APP_PAGE_MAPPING.md`
-蓝本增量对齐清单：`docs/KONG2ER_ALIGNMENT_INCREMENTAL.md`
+内部治理与对齐文档：`docs/_internal/`

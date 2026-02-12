@@ -3,7 +3,7 @@
 中文说明：
 - `scripts/` 目录仅保留阶段化复现入口。
 - 历史调试/实验脚本已归档到 `tools/legacy/`，不建议直接用于标准复现。
-- 入口分层矩阵见：`docs/ENTRYPOINT_MATRIX.md`
+- 入口分层矩阵见：`docs/_internal/ENTRYPOINT_MATRIX.md`
 
 推荐阶段入口：
 1. 环境：`create_cpu_venv.sh` / `create_gpu_venv.sh` / `env_cpu.sh` / `env_gpu.sh`
