@@ -38,7 +38,7 @@ S8 最终验收
 
 [NEXT]
   文档总览: docs/DELIVERY_SUMMARY.md
-  蓝本差异: docs/BLUEPRINT_EQUIV_CHECKLIST.md
-  入口矩阵: docs/ENTRYPOINT_MATRIX.md
-  页面映射: docs/APP_PAGE_MAPPING.md
+  蓝本差异: docs/_internal/BLUEPRINT_EQUIV_CHECKLIST.md
+  入口矩阵: docs/_internal/ENTRYPOINT_MATRIX.md
+  页面映射: docs/_internal/APP_PAGE_MAPPING.md
 TXT

@@ -2,6 +2,11 @@
 
 本仓库用于复现 Pangu-Weather 全球天气预报模型，强调可复现、可工程化与可审计。
 
+## 对外文档三件套
+- `README.md`：最短上手路径（对外入口）
+- `RUNBOOK.md`：阶段化执行与排错（对外操作手册）
+- `docs/DELIVERY_SUMMARY.md`：S1-S8 阶段总览（对外交付摘要）
+
 ## TL;DR
 CPU（Day8/CI）：
 ```bash
@@ -262,7 +267,4 @@ bash scripts/run_e_stage_verify.sh --force && sed -n '1,200p' artifacts/day7/E_S
 ## 阶段化复现总览
 - 完整 8 阶段流程见：`docs/DELIVERY_SUMMARY.md`
 - 快速打印 8 阶段命令：`bash scripts/show_stage_commands.sh`
-- 入口分层矩阵见：`docs/ENTRYPOINT_MATRIX.md`
-- 蓝本差异自动核查：`bash scripts/run_kong2er_gap_check.sh`
-- 蓝本页面映射：`docs/APP_PAGE_MAPPING.md`
-- 蓝本增量对齐清单：`docs/KONG2ER_ALIGNMENT_INCREMENTAL.md`
+- 内部治理与对齐文档已归档到：`docs/_internal/`

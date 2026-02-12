@@ -30,20 +30,20 @@ git pull --rebase paper cleanup/repo-sanitize && bash scripts/run_kong2er_gap_ch
 ## B. 页面术语映射（文档层）
 - 状态：`DONE`
 - 目标：蓝本中文页面 -> 当前页面/命令映射。
-- 文件：`docs/APP_PAGE_MAPPING.md`
+- 文件：`docs/_internal/APP_PAGE_MAPPING.md`
 - 验收命令：
 ```bash
-sed -n '1,240p' docs/APP_PAGE_MAPPING.md
+sed -n '1,240p' docs/_internal/APP_PAGE_MAPPING.md
 ```
 - 验收标准：包含 5 个蓝本页面映射与对应命令。
 
 ## C. 入口分层清晰化（文档层）
 - 状态：`DONE`
 - 目标：复现人员只看官方入口，不误用 legacy。
-- 文件：`docs/ENTRYPOINT_MATRIX.md`、`scripts/README.md`
+- 文件：`docs/_internal/ENTRYPOINT_MATRIX.md`、`scripts/README.md`
 - 验收命令：
 ```bash
-sed -n '1,220p' docs/ENTRYPOINT_MATRIX.md
+sed -n '1,220p' docs/_internal/ENTRYPOINT_MATRIX.md
 sed -n '1,120p' scripts/README.md
 ```
 - 验收标准：包含 官方/高级/归档 三层。
