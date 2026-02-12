@@ -202,9 +202,14 @@ scripts/run_gpu.sh tools/plot_product_bundle.py --rollout-dir "$OUTPUT_ROOT/day4
 说明：
 - 若 `cartopy/scipy` 或地理资源不完整，系统会自动回退到普通绘图，且在 JSON 记录 `geo_error`
 - 资源目录说明：`assets/geo/README.md`
+- 样式与数值对齐差异：`docs/PLOT_ALIGNMENT_GAP.md`
 - 若要尽量避免 geo 回退，建议安装：
 ```bash
 bash scripts/install_extras.sh plots --force
+```
+对齐验收报告（可选，若有蓝本参考图可加 `--ref-dir`）：
+```bash
+scripts/run_gpu.sh tools/compare_plots_against_reference.py --pred-dir figures/product --out artifacts/day7/plot_alignment_report.md
 ```
 
 ## 15. G 阶段推荐流程（蓝本对齐）
