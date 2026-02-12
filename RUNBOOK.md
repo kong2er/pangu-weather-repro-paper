@@ -230,3 +230,4 @@ bash scripts/verify_repo_health.sh
 入口分层矩阵：`docs/ENTRYPOINT_MATRIX.md`
 蓝本差异自动核查：`scripts/run_kong2er_gap_check.sh`
 蓝本页面映射：`docs/APP_PAGE_MAPPING.md`
+蓝本增量对齐清单：`docs/KONG2ER_ALIGNMENT_INCREMENTAL.md`
