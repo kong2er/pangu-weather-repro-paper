@@ -125,6 +125,9 @@ source scripts/env_gpu.sh
 ```bash
 bash scripts/prepare_era5_inputs.sh --yes
 ```
+若网络不可用，可手工放置其一后再重跑该命令：
+- 原始 nc：`$ERA5_RAW_ROOT/era5_single_${DATE}${HOUR}.nc`、`$ERA5_RAW_ROOT/era5_pressure_${DATE}${HOUR}.nc`
+- 或预处理 npy：`$PROCESSED_ROOT/surface.npy`、`$PROCESSED_ROOT/pressure.npy`
 
 4. 360h OOM
 ```bash

@@ -16,6 +16,9 @@ Notes:
 - If your network cannot access CDS, place nc files manually:
   ERA5_RAW_ROOT/era5_single_<date><hour>.nc
   ERA5_RAW_ROOT/era5_pressure_<date><hour>.nc
+- Or place processed numpy files directly:
+  PROCESSED_ROOT/surface.npy
+  PROCESSED_ROOT/pressure.npy
 - Interactive guard:
   yes  -> follow project default dataset and auto-download when needed
   no   -> use custom dataset (script stops and asks you to place files manually)
@@ -64,6 +67,8 @@ done
 
 SINGLE_NC="${ERA5_RAW_ROOT}/era5_single_${DATE_ARG}${HOUR_ARG}.nc"
 PRESSURE_NC="${ERA5_RAW_ROOT}/era5_pressure_${DATE_ARG}${HOUR_ARG}.nc"
+SURFACE_NPY="${PROCESSED_ROOT}/surface.npy"
+PRESSURE_NPY="${PROCESSED_ROOT}/pressure.npy"
 
 mkdir -p "${ERA5_RAW_ROOT}" "${PROCESSED_ROOT}"
 
@@ -94,13 +99,20 @@ if [[ "${DATASET_MODE}" != "default" && "${DATASET_MODE}" != "custom" ]]; then
   exit 2
 fi
 
-if [[ ! -f "${SINGLE_NC}" || ! -f "${PRESSURE_NC}" ]]; then
+# Fast path: if processed inputs already exist, do not require nc/cdsapirc.
+if [[ "${FORCE_PREPROCESS}" -eq 0 && -s "${SURFACE_NPY}" && -s "${PRESSURE_NPY}" ]]; then
+  echo "[STEP] processed npy already present (skip download/preprocess)"
+else
+  if [[ ! -f "${SINGLE_NC}" || ! -f "${PRESSURE_NC}" ]]; then
   if [[ "${DATASET_MODE}" == "custom" ]]; then
     cat <<EOF
 [STOP] custom dataset mode selected.
 [NEED] place your dataset files as:
   ${SINGLE_NC}
   ${PRESSURE_NC}
+or place processed files:
+  ${SURFACE_NPY}
+  ${PRESSURE_NPY}
 Then rerun:
   bash scripts/prepare_era5_inputs.sh --dataset-mode custom
 EOF
@@ -123,15 +135,10 @@ EOF
   echo "[STEP] download ERA5 pressure-level nc"
   "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/scripts/internal/03_download_era5_pressure.py" \
     --date "${DATE_ARG}" --hour "${HOUR_ARG}" --out-dir "${ERA5_RAW_ROOT}"
-else
-  echo "[STEP] ERA5 nc already present (skip download)"
-fi
+  else
+    echo "[STEP] ERA5 nc already present (skip download)"
+  fi
 
-SURFACE_NPY="${PROCESSED_ROOT}/surface.npy"
-PRESSURE_NPY="${PROCESSED_ROOT}/pressure.npy"
-if [[ "${FORCE_PREPROCESS}" -eq 0 && -s "${SURFACE_NPY}" && -s "${PRESSURE_NPY}" ]]; then
-  echo "[STEP] processed npy already present (skip preprocess)"
-else
   echo "[STEP] preprocess ERA5 nc -> numpy"
   "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/scripts/internal/04_preprocess_era5_to_npy.py" \
     --date "${DATE_ARG}" --hour "${HOUR_ARG}" --raw-dir "${ERA5_RAW_ROOT}" --out-dir "${PROCESSED_ROOT}"

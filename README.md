@@ -68,6 +68,7 @@ bash scripts/install_extras.sh plots --force
 ```bash
 bash scripts/prepare_era5_inputs.sh --yes
 ```
+  无法联网时可手工放置 `ERA5_RAW_ROOT/*.nc` 或 `PROCESSED_ROOT/{surface.npy,pressure.npy}` 后重跑。
 
 ## 目录说明（复现视角）
 - `pangu_weather_repro/`：核心代码

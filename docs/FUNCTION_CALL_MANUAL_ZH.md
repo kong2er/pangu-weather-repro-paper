@@ -34,6 +34,7 @@ bash scripts/run_day8_cpu_smoke.sh
 bash scripts/prepare_era5_inputs.sh --yes
 ```
 - 实际意义：生成 Day3 所需的 `processed/surface.npy` 和 `processed/pressure.npy`，避免 GPU smoke 因缺输入失败。
+- 低网速场景：可手动放置原始 `era5_single_*.nc + era5_pressure_*.nc` 或直接放置 `surface.npy + pressure.npy`，脚本会自动跳过下载。
 
 ## 5. GPU 冒烟测试（Day3）
 - 命令：
