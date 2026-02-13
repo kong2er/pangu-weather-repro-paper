@@ -73,6 +73,16 @@ PRESSURE_NPY="${PROCESSED_ROOT}/pressure.npy"
 
 mkdir -p "${ERA5_RAW_ROOT}" "${PROCESSED_ROOT}"
 
+# Guard corrupted zero-byte nc files from previous failed downloads.
+if [[ -f "${SINGLE_NC}" && ! -s "${SINGLE_NC}" ]]; then
+  echo "[清理] 检测到空文件，删除: ${SINGLE_NC}"
+  rm -f "${SINGLE_NC}"
+fi
+if [[ -f "${PRESSURE_NC}" && ! -s "${PRESSURE_NC}" ]]; then
+  echo "[清理] 检测到空文件，删除: ${PRESSURE_NC}"
+  rm -f "${PRESSURE_NC}"
+fi
+
 if [[ -z "${DATASET_MODE}" ]]; then
   if [[ "${ASSUME_YES}" -eq 1 ]]; then
     DATASET_MODE="default"
@@ -105,7 +115,7 @@ fi
 if [[ "${FORCE_PREPROCESS}" -eq 0 && -s "${SURFACE_NPY}" && -s "${PRESSURE_NPY}" ]]; then
   echo "[STEP] processed npy already present (skip download/preprocess)"
 else
-  if [[ ! -f "${SINGLE_NC}" || ! -f "${PRESSURE_NC}" ]]; then
+  if [[ ! -s "${SINGLE_NC}" || ! -s "${PRESSURE_NC}" ]]; then
   if [[ "${DATASET_MODE}" == "custom" ]]; then
     cat <<EOF
 [提示] 请先手动添加你想要的数据集。
