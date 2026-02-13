@@ -14,7 +14,7 @@ cd /root/projects/pangu-weather-repro-paper
 bash scripts/create_cpu_venv.sh
 bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
-bash scripts/prepare_era5_inputs.sh
+bash scripts/prepare_era5_inputs.sh --yes
 bash scripts/run_360h_split.sh --auto-retry
 bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --impl auto --force
 bash scripts/final_verify.sh --with-e-stage --e-stage-force
@@ -66,7 +66,7 @@ bash scripts/install_extras.sh plots --force
 - Streamlit 外网 503：优先 SSH 隧道访问 `http://127.0.0.1:8501`
 - Day3 报错缺 `surface.npy/pressure.npy`：
 ```bash
-bash scripts/prepare_era5_inputs.sh
+bash scripts/prepare_era5_inputs.sh --yes
 ```
 
 ## 目录说明（复现视角）

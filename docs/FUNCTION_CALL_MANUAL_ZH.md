@@ -31,7 +31,7 @@ bash scripts/run_day8_cpu_smoke.sh
 ## 4. Day3 前置数据准备（ERA5 -> numpy）
 - 命令：
 ```bash
-bash scripts/prepare_era5_inputs.sh
+bash scripts/prepare_era5_inputs.sh --yes
 ```
 - 实际意义：生成 Day3 所需的 `processed/surface.npy` 和 `processed/pressure.npy`，避免 GPU smoke 因缺输入失败。
 

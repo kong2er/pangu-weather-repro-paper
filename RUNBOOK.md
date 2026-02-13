@@ -42,7 +42,7 @@ scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ## S3 GPU smoke
 先准备 ERA5 输入（首次机器必须）：
 ```bash
-bash scripts/prepare_era5_inputs.sh
+bash scripts/prepare_era5_inputs.sh --yes
 ```
 
 再跑 GPU smoke：
@@ -123,7 +123,7 @@ source scripts/env_gpu.sh
 
 3. `missing surface.npy / pressure.npy`
 ```bash
-bash scripts/prepare_era5_inputs.sh
+bash scripts/prepare_era5_inputs.sh --yes
 ```
 
 4. 360h OOM
