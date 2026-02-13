@@ -130,6 +130,7 @@ bash scripts/prepare_era5_inputs.sh
 - 原始 nc：`$ERA5_RAW_ROOT/era5_single_${DATE}${HOUR}.nc`、`$ERA5_RAW_ROOT/era5_pressure_${DATE}${HOUR}.nc`
 - 或预处理 npy：`$PROCESSED_ROOT/surface.npy`、`$PROCESSED_ROOT/pressure.npy`
 交互式终端下，脚本也支持直接录入 CDS API Key 并自动写入 `~/.cdsapirc`。
+（支持 `key` 或 `uid:key` 两种格式）
 
 4. 360h OOM
 ```bash

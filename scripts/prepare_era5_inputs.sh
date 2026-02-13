@@ -22,6 +22,7 @@ Notes:
 - Interactive guard:
   yes  -> follow project default dataset and auto-download when needed
   no   -> use custom dataset and print manual-placement hints
+- If ~/.cdsapirc is missing, script can prompt for CDS API key interactively.
 EOF
   exit 0
 fi
@@ -127,17 +128,20 @@ EOF
       read -r -p "> " API_REPLY
       case "${API_REPLY}" in
         yes|y|Y)
-          echo "请输入 CDS UID（例如 123456）："
-          read -r -p "> " CDS_UID
-          echo "请输入 CDS API Key："
-          read -r -p "> " CDS_KEY
-          if [[ -z "${CDS_UID}" || -z "${CDS_KEY}" ]]; then
-            echo "[失败] UID 或 API Key 为空。"
+          echo "请输入 CDS API Key（支持以下任一格式）："
+          echo "  1) 纯 key，例如：247b32b6-xxxx"
+          echo "  2) uid:key，例如：123456:247b32b6-xxxx"
+          echo "  3) key: <value>（可直接粘贴）"
+          read -r -p "> " CDS_KEY_INPUT
+          CDS_KEY_INPUT="${CDS_KEY_INPUT#key:}"
+          CDS_KEY_INPUT="$(echo "${CDS_KEY_INPUT}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [[ -z "${CDS_KEY_INPUT}" ]]; then
+            echo "[失败] API Key 为空。"
             exit 1
           fi
           cat > "${HOME}/.cdsapirc" <<EOF
 url: https://cds.climate.copernicus.eu/api
-key: ${CDS_UID}:${CDS_KEY}
+key: ${CDS_KEY_INPUT}
 EOF
           chmod 600 "${HOME}/.cdsapirc"
           echo "[OK] 已写入 ~/.cdsapirc，继续下载。"
