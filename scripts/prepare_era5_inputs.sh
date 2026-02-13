@@ -121,18 +121,59 @@ EOF
     exit 0
   fi
   if [[ ! -f "${HOME}/.cdsapirc" ]]; then
-    cat <<EOF
-[FAIL] missing ~/.cdsapirc and ERA5 nc files not found.
-[NEED] either:
-  1) configure ~/.cdsapirc then rerun this script
-  2) manually place:
-     ${SINGLE_NC}
-     ${PRESSURE_NC}
-  3) or place processed files directly:
-     ${SURFACE_NPY}
-     ${PRESSURE_NPY}
+    echo "[提示] 未检测到 ~/.cdsapirc，且本地未发现可用 ERA5 数据。"
+    if [[ -t 0 ]]; then
+      echo "[询问] 是否现在填写 CDS API Key？(yes/no)"
+      read -r -p "> " API_REPLY
+      case "${API_REPLY}" in
+        yes|y|Y)
+          echo "请输入 CDS UID（例如 123456）："
+          read -r -p "> " CDS_UID
+          echo "请输入 CDS API Key："
+          read -r -p "> " CDS_KEY
+          if [[ -z "${CDS_UID}" || -z "${CDS_KEY}" ]]; then
+            echo "[失败] UID 或 API Key 为空。"
+            exit 1
+          fi
+          cat > "${HOME}/.cdsapirc" <<EOF
+url: https://cds.climate.copernicus.eu/api
+key: ${CDS_UID}:${CDS_KEY}
 EOF
-    exit 1
+          chmod 600 "${HOME}/.cdsapirc"
+          echo "[OK] 已写入 ~/.cdsapirc，继续下载。"
+          ;;
+        no|n|N)
+          cat <<EOF
+[提示] 请先手动添加你想要的数据集。
+[建议放置路径]
+- 原始 nc:
+  ${SINGLE_NC}
+  ${PRESSURE_NC}
+- 或预处理 npy:
+  ${SURFACE_NPY}
+  ${PRESSURE_NPY}
+EOF
+          exit 0
+          ;;
+        *)
+          echo "[失败] 请输入 yes 或 no。"
+          exit 2
+          ;;
+      esac
+    else
+      cat <<EOF
+[失败] 缺少 ~/.cdsapirc，且当前为非交互环境。
+[处理方式]
+1) 手动创建 ~/.cdsapirc 后重试；
+2) 或手动放置数据：
+   ${SINGLE_NC}
+   ${PRESSURE_NC}
+   或
+   ${SURFACE_NPY}
+   ${PRESSURE_NPY}
+EOF
+      exit 1
+    fi
   fi
   echo "[STEP] download ERA5 single-level nc"
   "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/scripts/internal/03_download_era5_single.py" \
