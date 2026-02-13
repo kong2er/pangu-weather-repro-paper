@@ -14,17 +14,18 @@ cd /root/projects/pangu-weather-repro-paper
 bash scripts/create_cpu_venv.sh
 bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
-bash scripts/prepare_era5_inputs.sh --yes
+bash scripts/prepare_era5_inputs.sh
 bash scripts/run_360h_split.sh --auto-retry
 bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --impl auto --force
 bash scripts/final_verify.sh --with-e-stage --e-stage-force
 ```
 
 ## 空白机数据准备（必须先完成）
-- 默认数据链路（有 CDS 凭据）：
+- 默认数据链路（会中文询问是否自动下载）：
 ```bash
-bash scripts/prepare_era5_inputs.sh --yes
+bash scripts/prepare_era5_inputs.sh
 ```
+- 非交互场景可用：`bash scripts/prepare_era5_inputs.sh --yes`
 - 无外网/CDS 凭据时，先手工放入任意一组后再执行上面命令：
   - 原始 nc：`$ERA5_RAW_ROOT/era5_single_2023070900.nc`、`$ERA5_RAW_ROOT/era5_pressure_2023070900.nc`
   - 预处理 npy：`$PROCESSED_ROOT/surface.npy`、`$PROCESSED_ROOT/pressure.npy`
@@ -75,7 +76,7 @@ bash scripts/install_extras.sh plots --force
 - Streamlit 外网 503：优先 SSH 隧道访问 `http://127.0.0.1:8501`
 - Day3 报错缺 `surface.npy/pressure.npy`：
 ```bash
-bash scripts/prepare_era5_inputs.sh --yes
+bash scripts/prepare_era5_inputs.sh
 ```
   无法联网时可手工放置 `ERA5_RAW_ROOT/*.nc` 或 `PROCESSED_ROOT/{surface.npy,pressure.npy}` 后重跑。
 

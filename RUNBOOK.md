@@ -42,7 +42,7 @@ scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ## S3 GPU smoke
 先准备 ERA5 输入（首次机器必须）：
 ```bash
-bash scripts/prepare_era5_inputs.sh --yes
+bash scripts/prepare_era5_inputs.sh
 ```
 如果 `~/.cdsapirc` 缺失且外网不可达：先手工放置原始 nc 或预处理 npy（见下方故障排查第 3 条），再执行该命令。
 
@@ -124,7 +124,7 @@ source scripts/env_gpu.sh
 
 3. `missing surface.npy / pressure.npy`
 ```bash
-bash scripts/prepare_era5_inputs.sh --yes
+bash scripts/prepare_era5_inputs.sh
 ```
 若网络不可用，可手工放置其一后再重跑该命令：
 - 原始 nc：`$ERA5_RAW_ROOT/era5_single_${DATE}${HOUR}.nc`、`$ERA5_RAW_ROOT/era5_pressure_${DATE}${HOUR}.nc`

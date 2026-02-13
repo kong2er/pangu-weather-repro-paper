@@ -21,7 +21,7 @@ Notes:
   PROCESSED_ROOT/pressure.npy
 - Interactive guard:
   yes  -> follow project default dataset and auto-download when needed
-  no   -> use custom dataset (script stops and asks you to place files manually)
+  no   -> use custom dataset and print manual-placement hints
 EOF
   exit 0
 fi
@@ -76,7 +76,8 @@ if [[ -z "${DATASET_MODE}" ]]; then
   if [[ "${ASSUME_YES}" -eq 1 ]]; then
     DATASET_MODE="default"
   elif [[ -t 0 ]]; then
-    read -r -p "[QUESTION] Follow default project dataset? (yes/no): " REPLY
+    echo "[询问] 是否要自动下载默认数据集？(yes/no)"
+    read -r -p "> " REPLY
     case "${REPLY}" in
       yes|y|Y)
         DATASET_MODE="default"
@@ -85,7 +86,7 @@ if [[ -z "${DATASET_MODE}" ]]; then
         DATASET_MODE="custom"
         ;;
       *)
-        echo "[FAIL] Please answer yes or no."
+        echo "[失败] 请输入 yes 或 no。"
         exit 2
         ;;
     esac
@@ -106,17 +107,18 @@ else
   if [[ ! -f "${SINGLE_NC}" || ! -f "${PRESSURE_NC}" ]]; then
   if [[ "${DATASET_MODE}" == "custom" ]]; then
     cat <<EOF
-[STOP] custom dataset mode selected.
-[NEED] place your dataset files as:
+[提示] 请先手动添加你想要的数据集。
+[建议放置路径]
+- 原始 nc:
   ${SINGLE_NC}
   ${PRESSURE_NC}
-or place processed files:
+- 或预处理 npy:
   ${SURFACE_NPY}
   ${PRESSURE_NPY}
-Then rerun:
+[下一步] 数据放置完成后重新执行:
   bash scripts/prepare_era5_inputs.sh --dataset-mode custom
 EOF
-    exit 1
+    exit 0
   fi
   if [[ ! -f "${HOME}/.cdsapirc" ]]; then
     cat <<EOF
