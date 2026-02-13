@@ -20,6 +20,15 @@ bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --
 bash scripts/final_verify.sh --with-e-stage --e-stage-force
 ```
 
+## 空白机数据准备（必须先完成）
+- 默认数据链路（有 CDS 凭据）：
+```bash
+bash scripts/prepare_era5_inputs.sh --yes
+```
+- 无外网/CDS 凭据时，先手工放入任意一组后再执行上面命令：
+  - 原始 nc：`$ERA5_RAW_ROOT/era5_single_2023070900.nc`、`$ERA5_RAW_ROOT/era5_pressure_2023070900.nc`
+  - 预处理 npy：`$PROCESSED_ROOT/surface.npy`、`$PROCESSED_ROOT/pressure.npy`
+
 ## 官方入口（只用 `scripts/`）
 - 环境：`create_cpu_venv.sh`、`create_gpu_venv.sh`、`env_cpu.sh`、`env_gpu.sh`
 - 运行：`prepare_era5_inputs.sh`、`run_cpu.sh`、`run_gpu.sh`、`run_360h_split.sh`、`run_product_all.sh`、`run_streamlit.sh`

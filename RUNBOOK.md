@@ -44,12 +44,13 @@ scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```bash
 bash scripts/prepare_era5_inputs.sh --yes
 ```
+如果 `~/.cdsapirc` 缺失且外网不可达：先手工放置原始 nc 或预处理 npy（见下方故障排查第 3 条），再执行该命令。
 
 再跑 GPU smoke：
 ```bash
-bash scripts/final_verify.sh
+bash scripts/run_day3_smoke_gpu.sh
 ```
-通过标准：Day3/Day5/Day6 子步骤通过。
+通过标准：生成 `$OUTPUT_ROOT/smoke_24h_report.json`。
 
 ## S4 84h 推理
 ```bash
@@ -142,6 +143,18 @@ scripts/run_gpu.sh -m pip install -U cmaps pandas xarray
 
 6. Streamlit 外网 503
 - 使用 SSH 隧道，浏览器访问 `http://127.0.0.1:8501`。
+
+7. `git pull/fetch` TLS 中断（AutoDL 常见）
+```bash
+git config --global http.version HTTP/1.1
+git config --global http.lowSpeedLimit 1
+git config --global http.lowSpeedTime 60
+for i in 1 2 3 4 5; do
+  timeout 60 git fetch origin main && break
+  sleep 3
+done
+git pull --rebase origin main
+```
 
 ## 关机前清理（可选）
 ```bash

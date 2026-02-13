@@ -126,6 +126,9 @@ EOF
   2) manually place:
      ${SINGLE_NC}
      ${PRESSURE_NC}
+  3) or place processed files directly:
+     ${SURFACE_NPY}
+     ${PRESSURE_NPY}
 EOF
     exit 1
   fi
