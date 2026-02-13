@@ -4,7 +4,7 @@
 
 ## S0 预设
 ```bash
-cd /root/projects/pangu-weather-repro-uv
+cd /root/projects/pangu-weather-repro-paper
 source configs/default.env
 ```
 
@@ -40,6 +40,12 @@ scripts/run_cpu.sh -m pangu_weather_repro.smoke
 通过标准：输出 `contracts smoke ok`。
 
 ## S3 GPU smoke
+先准备 ERA5 输入（首次机器必须）：
+```bash
+bash scripts/prepare_era5_inputs.sh
+```
+
+再跑 GPU smoke：
 ```bash
 bash scripts/final_verify.sh
 ```
@@ -115,18 +121,23 @@ source scripts/env_gpu.sh
 2. `out_dir exists`
 - 加 `--force`，或指定新的 `--out-dir`。
 
-3. 360h OOM
+3. `missing surface.npy / pressure.npy`
+```bash
+bash scripts/prepare_era5_inputs.sh
+```
+
+4. 360h OOM
 ```bash
 bash scripts/run_360h_split.sh --auto-retry
 ```
 
-4. `blueprint unavailable (No module named 'cmaps')`
+5. `blueprint unavailable (No module named 'cmaps')`
 ```bash
 source scripts/env_gpu.sh
 scripts/run_gpu.sh -m pip install -U cmaps pandas xarray
 ```
 
-5. Streamlit 外网 503
+6. Streamlit 外网 503
 - 使用 SSH 隧道，浏览器访问 `http://127.0.0.1:8501`。
 
 ## 关机前清理（可选）

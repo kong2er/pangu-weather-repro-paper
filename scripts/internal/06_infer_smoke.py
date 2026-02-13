@@ -92,11 +92,11 @@ def main():
     pressure_path = os.path.join(args.processed_dir, "pressure.npy")
     if not os.path.exists(surface_path):
         raise FileNotFoundError(
-            f"missing surface.npy: {surface_path}. Run scripts/internal/04_preprocess_era5_to_npy.py first."
+            f"missing surface.npy: {surface_path}. Run scripts/prepare_era5_inputs.sh first."
         )
     if not os.path.exists(pressure_path):
         raise FileNotFoundError(
-            f"missing pressure.npy: {pressure_path}. Run scripts/internal/04_preprocess_era5_to_npy.py first."
+            f"missing pressure.npy: {pressure_path}. Run scripts/prepare_era5_inputs.sh first."
         )
     surface = np.load(surface_path).astype(np.float32)
     pressure = np.load(pressure_path).astype(np.float32)

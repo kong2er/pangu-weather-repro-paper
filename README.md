@@ -10,10 +10,11 @@
 
 ## 最短复现路径（新机器推荐）
 ```bash
-cd /root/projects/pangu-weather-repro-uv
+cd /root/projects/pangu-weather-repro-paper
 bash scripts/create_cpu_venv.sh
 bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
+bash scripts/prepare_era5_inputs.sh
 bash scripts/run_360h_split.sh --auto-retry
 bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --impl auto --force
 bash scripts/final_verify.sh --with-e-stage --e-stage-force
@@ -21,7 +22,7 @@ bash scripts/final_verify.sh --with-e-stage --e-stage-force
 
 ## 官方入口（只用 `scripts/`）
 - 环境：`create_cpu_venv.sh`、`create_gpu_venv.sh`、`env_cpu.sh`、`env_gpu.sh`
-- 运行：`run_cpu.sh`、`run_gpu.sh`、`run_360h_split.sh`、`run_product_all.sh`、`run_streamlit.sh`
+- 运行：`prepare_era5_inputs.sh`、`run_cpu.sh`、`run_gpu.sh`、`run_360h_split.sh`、`run_product_all.sh`、`run_streamlit.sh`
 - 验收：`verify_repo_health.sh`、`final_verify.sh`
 - 依赖安装：`install_extras.sh`
 
@@ -63,6 +64,10 @@ bash scripts/install_extras.sh plots --force
 - 输出目录已存在：使用 `--force` 或切换 `--out-dir`
 - 360h OOM：`bash scripts/run_360h_split.sh --auto-retry`
 - Streamlit 外网 503：优先 SSH 隧道访问 `http://127.0.0.1:8501`
+- Day3 报错缺 `surface.npy/pressure.npy`：
+```bash
+bash scripts/prepare_era5_inputs.sh
+```
 
 ## 目录说明（复现视角）
 - `pangu_weather_repro/`：核心代码
