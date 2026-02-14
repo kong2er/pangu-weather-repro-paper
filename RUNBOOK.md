@@ -35,7 +35,7 @@ bash scripts/verify_repo_health.sh
 
 ## S2 CPU smoke
 ```bash
-scripts/run_cpu.sh -m pangu_weather_repro.smoke
+bash scripts/run_cpu.sh -m pangu_weather_repro.smoke
 ```
 通过标准：输出 `contracts smoke ok`。
 

@@ -69,14 +69,14 @@ bash scripts/run_360h_split.sh --auto-retry
 ## 8. RMSE 评估（Day5）
 - 命令：
 ```bash
-bash scripts/internal/run_day5_rmse.sh
+bash scripts/run_day5_rmse.sh
 ```
 - 实际意义：生成误差评估结果，用于量化预测质量。
 
 ## 9. 论文图生成（Day6）
 - 命令：
 ```bash
-bash scripts/internal/run_day6_plots.sh
+bash scripts/run_day6_plots.sh
 ```
 - 实际意义：生成字段图和 RMSE 曲线图，形成论文图产物。
 

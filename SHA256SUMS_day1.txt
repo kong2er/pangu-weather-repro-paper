@@ -1,3 +1,0 @@
-f55a7c4dc9940e30e484c547ae0215a207fcec2c451c7a607f2e39d87e747a16  /root/autodl-tmp/pangu-weather-repro/era5_raw/era5_pressure_2023070900.nc
-95d6ce2e040f961a6d9f42aec1ee309140e4bd13bc59f54a67d304b81acf8c8b  /root/autodl-tmp/pangu-weather-repro/era5_raw/era5_single_2023070900.nc
-e0c876ec02b6db5325dc3217ce16a9a2fc3f06de043e47b4ad1d1b2159c9b6b8  /root/autodl-tmp/pangu-weather-repro/era5_raw/smoke_t2m_2023070900.nc
