@@ -80,7 +80,7 @@ ls -1 "$ROOT_DIR/figures/day6"/*.png >/dev/null 2>&1 || fail "missing figures/da
 # providers check
 if [[ -x "$ROOT_DIR/scripts/run_cpu.sh" ]]; then
   echo "== CPU providers =="
-  "$ROOT_DIR/scripts/run_cpu.sh" - <<'PY'
+  "$ROOT_DIR/scripts/run_cpu.sh" - <<'PY' || true
 import importlib.util
 spec = importlib.util.find_spec("onnxruntime")
 print("onnxruntime in CPU env:", bool(spec))

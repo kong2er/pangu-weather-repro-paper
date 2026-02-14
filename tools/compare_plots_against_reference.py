@@ -45,6 +45,34 @@ def _psnr(mse: float) -> float:
     return float(10.0 * math.log10(1.0 / mse))
 
 
+def _histogram_similarity(a: np.ndarray, b: np.ndarray, bins: int = 256) -> float:
+    """计算两幅图像的直方图交叉相似度（0-1，越高越相似）。
+
+    对每个通道分别计算归一化直方图的交叉量，然后取所有通道的均值。
+    """
+    if a.shape != b.shape:
+        h = min(a.shape[0], b.shape[0])
+        w = min(a.shape[1], b.shape[1])
+        c = min(a.shape[2], b.shape[2])
+        a = a[:h, :w, :c]
+        b = b[:h, :w, :c]
+
+    n_channels = a.shape[2] if a.ndim == 3 else 1
+    similarities = []
+    for ch in range(n_channels):
+        a_ch = a[:, :, ch].ravel() if a.ndim == 3 else a.ravel()
+        b_ch = b[:, :, ch].ravel() if b.ndim == 3 else b.ravel()
+        # 归一化直方图
+        hist_a, _ = np.histogram(a_ch, bins=bins, range=(0.0, 1.0))
+        hist_b, _ = np.histogram(b_ch, bins=bins, range=(0.0, 1.0))
+        hist_a = hist_a.astype(np.float64) / max(hist_a.sum(), 1)
+        hist_b = hist_b.astype(np.float64) / max(hist_b.sum(), 1)
+        # 直方图交叉量
+        intersection = float(np.minimum(hist_a, hist_b).sum())
+        similarities.append(intersection)
+    return float(np.mean(similarities))
+
+
 def _load_meta(meta_path: Path) -> dict[str, Any]:
     with open(meta_path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -89,6 +117,7 @@ def main() -> None:
     compared = 0
     mse_list: list[float] = []
     psnr_list: list[float] = []
+    hist_sim_list: list[float] = []
     sanity_ok = 0
     sanity_fail = 0
 
@@ -117,11 +146,14 @@ def main() -> None:
                 b = _read_image(ref_png)
                 mse = _mse(a, b)
                 psnr = _psnr(mse)
+                hist_sim = _histogram_similarity(a, b)
                 compared += 1
                 mse_list.append(mse)
                 psnr_list.append(psnr)
+                hist_sim_list.append(hist_sim)
                 entry.append(f"mse={mse:.6f}")
                 entry.append(f"psnr={psnr:.2f}")
+                entry.append(f"hist_sim={hist_sim:.4f}")
             except Exception as exc:
                 entry.append(f"compare_error={exc}")
         else:
@@ -137,9 +169,11 @@ def main() -> None:
     if compared > 0:
         lines.append(f"- mse_mean: {float(np.mean(mse_list)):.6f}")
         lines.append(f"- psnr_mean: {float(np.mean(psnr_list)):.2f}")
+        lines.append(f"- hist_similarity_mean: {float(np.mean(hist_sim_list)):.4f}")
     else:
         lines.append("- mse_mean: N/A")
         lines.append("- psnr_mean: N/A")
+        lines.append("- hist_similarity_mean: N/A")
         lines.append("- note: provide --ref-dir with blueprint images to enable pixel-level comparison.")
 
     lines.append("")
@@ -153,4 +187,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

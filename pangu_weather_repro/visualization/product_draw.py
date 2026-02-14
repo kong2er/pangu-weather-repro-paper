@@ -9,6 +9,7 @@ Current scope:
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -20,11 +21,38 @@ from pangu_weather_repro.visualization.geo import (
     try_import_cartopy,
 )
 from pangu_weather_repro.visualization.style import (
+    get_colorbar_style,
     get_diff_style,
     get_fill_style,
+    get_font_style,
+    get_map_style,
     get_style,
     get_vector_style,
 )
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# 经纬度网格缓存 — 避免 meshgrid 重复计算（同一 shape 只算一次）
+# ---------------------------------------------------------------------------
+_GRID_CACHE: dict[tuple[int, int], tuple[np.ndarray, np.ndarray]] = {}
+
+
+def _get_latlon_grid(nlat: int, nlon: int) -> tuple[np.ndarray, np.ndarray]:
+    """返回 (lon2d, lat2d) 网格，结果会被缓存以避免重复计算。"""
+    key = (nlat, nlon)
+    if key not in _GRID_CACHE:
+        lat = np.linspace(90.0, -90.0, nlat, dtype=np.float32)
+        lon = np.linspace(0.0, 360.0, nlon, endpoint=False, dtype=np.float32)
+        _GRID_CACHE[key] = np.meshgrid(lon, lat)
+    return _GRID_CACHE[key]
+
+
+# ---------------------------------------------------------------------------
+# 中国 SHP 文件路径（蓝本使用的省界/国界 shapefile）
+# ---------------------------------------------------------------------------
+_CHINA_SHP_PATH = Path(__file__).resolve().parents[2] / "vendor" / "blueprint" / "pangu" / "visualization" / "Country" / "中华人民共和国.shp"
+
 
 def _auto_range(data: np.ndarray, vmin: float | None, vmax: float | None) -> tuple[float, float]:
     if vmin is not None and vmax is not None:
@@ -106,12 +134,17 @@ def _resolve_diff_style(
 
 
 def _convert_for_display(var: str, data: np.ndarray, style_profile: str) -> tuple[np.ndarray, str]:
-    """Convert variable values only for display (no model math change)."""
+    """转换变量值用于显示（不影响模型计算）。"""
     fill = get_fill_style(var, style_profile)
     unit_label = str(fill.get("unit_label", ""))
+    arr = np.asarray(data, dtype=np.float32)
+    # Pa -> hPa 转换
     if fill.get("convert_from_pa"):
-        return np.asarray(data, dtype=np.float32) / 100.0, unit_label
-    return np.asarray(data, dtype=np.float32), unit_label
+        arr = arr / 100.0
+    # K -> °C 转换（蓝本 t2m 使用摄氏度）
+    if fill.get("convert_from_kelvin"):
+        arr = arr - 273.15
+    return arr, unit_label
 
 
 def _series_stats(data: np.ndarray) -> dict[str, float]:
@@ -122,6 +155,143 @@ def _series_stats(data: np.ndarray) -> dict[str, float]:
         "data_mean": float(np.nanmean(arr)),
         "data_std": float(np.nanstd(arr)),
     }
+
+
+# ---------------------------------------------------------------------------
+# 蓝本对齐辅助函数：地图样式、色条、标题、字体
+# ---------------------------------------------------------------------------
+
+def _apply_font_style(style_profile: str) -> None:
+    """根据配置设置 matplotlib 字体（通过 rcParams）。"""
+    font_cfg = get_font_style(style_profile)
+    if not font_cfg:
+        return
+    import matplotlib as mpl
+    family = font_cfg.get("family")
+    if family:
+        mpl.rcParams["font.family"] = family if isinstance(family, list) else [family]
+
+
+def _apply_map_features(ax: Any, style_profile: str, ccrs: Any, cfeature: Any) -> None:
+    """在 GeoAxes 上应用海岸线、边界、网格线等地图要素。
+
+    standard 配置沿用原有行为（coastlines lw=0.5 + BORDERS 110m）。
+    blueprint 配置使用中国 SHP 边界 + 可配置网格线。
+    """
+    map_style = get_map_style(style_profile)
+    coastline_lw = float(map_style.get("coastline_linewidth", 0.5))
+
+    # --- 中国 SHP 边界支持 ---
+    if map_style.get("use_china_shapefile") and _CHINA_SHP_PATH.exists():
+        try:
+            import cartopy.io.shapereader as shpreader
+            from cartopy.feature import ShapelyFeature
+            reader = shpreader.Reader(str(_CHINA_SHP_PATH))
+            china_feature = ShapelyFeature(
+                reader.geometries(),
+                ccrs.PlateCarree(),
+                facecolor="none",
+                edgecolor=str(map_style.get("coastline_edgecolor", "0.5")),
+                linewidth=coastline_lw,
+                zorder=100,
+            )
+            ax.add_feature(china_feature)
+        except Exception as exc:
+            logger.warning("加载中国 SHP 文件失败，回退到默认海岸线: %s", exc)
+            ax.coastlines(linewidth=coastline_lw)
+            if cfeature is not None:
+                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+    else:
+        # standard 配置：使用默认海岸线
+        ax.coastlines(linewidth=coastline_lw)
+        if cfeature is not None:
+            ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+
+    # --- 网格线配置 ---
+    grid_cfg = map_style.get("gridlines", {})
+    if grid_cfg.get("enabled", False):
+        gl = ax.gridlines(
+            crs=ccrs.PlateCarree(),
+            draw_labels=grid_cfg.get("draw_labels", True),
+            linestyle=str(grid_cfg.get("linestyle", ":")),
+            color=str(grid_cfg.get("color", "gray")),
+            alpha=float(grid_cfg.get("alpha", 1.0)),
+            linewidth=float(grid_cfg.get("linewidth", 1)),
+        )
+        gl.top_labels = grid_cfg.get("top_labels", False)
+        gl.right_labels = grid_cfg.get("right_labels", False)
+
+
+def _add_colorbar(fig: Any, ax: Any, im: Any, units_use: str, style_profile: str) -> Any:
+    """添加色条 — 根据配置使用标准或内嵌样式。
+
+    standard 配置：fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)（与原实现一致）。
+    blueprint 配置：使用 inset_axes 内嵌色条（右下角，带白色背景框）。
+    """
+    cb_style = get_colorbar_style(style_profile)
+
+    if cb_style.get("style") == "inset":
+        try:
+            from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+            # 内嵌色条：在图右下角创建一个小的轴
+            cax = inset_axes(
+                ax,
+                width=str(cb_style.get("inset_width", "5%")),
+                height=str(cb_style.get("inset_height", "33%")),
+                loc=str(cb_style.get("inset_loc", "lower right")),
+                borderpad=2,
+            )
+            # 添加白色半透明背景
+            bg_alpha = float(cb_style.get("background_alpha", 0.95))
+            cax.patch.set_facecolor("white")
+            cax.patch.set_alpha(bg_alpha)
+            cb = fig.colorbar(im, cax=cax)
+            cb.ax.tick_params(
+                direction=str(cb_style.get("tick_direction", "in")),
+                length=float(cb_style.get("tick_length", 2)),
+                labelsize=int(cb_style.get("tick_labelsize", 10)),
+            )
+            if units_use:
+                cb.set_label(units_use)
+            return cb
+        except Exception as exc:
+            logger.warning("内嵌色条创建失败，回退到标准色条: %s", exc)
+
+    # 标准色条（默认）
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
+    if units_use:
+        cb.set_label(units_use)
+    return cb
+
+
+def _set_title(ax: Any, title: str, style_profile: str) -> None:
+    """设置图标题 — blueprint 使用左对齐标题，standard 居中。"""
+    font_cfg = get_font_style(style_profile)
+    fontsize = font_cfg.get("title_fontsize")
+
+    if style_profile == "blueprint":
+        # 蓝本使用左对齐标题
+        kwargs: dict[str, Any] = {"loc": "left"}
+        if fontsize:
+            kwargs["fontsize"] = fontsize
+        ax.set_title(title, **kwargs)
+    else:
+        ax.set_title(title)
+
+
+def _resolve_extent_with_default(
+    extent: tuple[float, float, float, float] | None,
+    style_profile: str,
+) -> tuple[float, float, float, float]:
+    """解析 extent 参数，blueprint 配置默认使用中国区域范围。"""
+    if extent is not None:
+        return _normalize_extent(extent)
+    # 如果是 blueprint 配置且未指定 extent，使用默认中国区域
+    style = get_style(style_profile)
+    default_extent = style.get("extent_default")
+    if default_extent is not None:
+        return tuple(float(x) for x in default_extent)
+    return _normalize_extent(None)
 
 
 def draw_global_fill(
@@ -157,6 +327,8 @@ def draw_global_fill(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    # 应用字体配置
+    _apply_font_style(style_profile)
     raw_data = np.asarray(data)
     data, unit_from_style = _convert_for_display(var, raw_data, style_profile)
     if data.ndim != 2:
@@ -177,7 +349,8 @@ def draw_global_fill(
         vmin=vmin,
         vmax=vmax,
     )
-    extent = _normalize_extent(extent)
+    # 解析 extent（blueprint 默认使用中国区域）
+    extent = _resolve_extent_with_default(extent, style_profile)
     fig_style = get_style(style_profile).get("figure", {})
     figsize = tuple(fig_style.get("figsize_fill", (7.0, 3.6)))
 
@@ -186,9 +359,8 @@ def draw_global_fill(
             fig = plt.figure(figsize=figsize, dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
-            ax.coastlines(linewidth=0.5)
-            if cfeature is not None:
-                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+            # 应用地图要素（海岸线、边界、网格线）
+            _apply_map_features(ax, style_profile, ccrs, cfeature)
             im = ax.imshow(
                 data,
                 extent=extent,
@@ -215,10 +387,8 @@ def draw_global_fill(
     t = title or f"{var} t+{lead_hour:03d}"
     if units_use:
         t += f" ({units_use})"
-    ax.set_title(t)
-    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    if units_use:
-        cb.set_label(units_use)
+    _set_title(ax, t, style_profile)
+    _add_colorbar(fig, ax, im, units_use, style_profile)
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -279,6 +449,7 @@ def draw_diff_fill(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    _apply_font_style(style_profile)
     pred_raw = np.asarray(pred, dtype=np.float32)
     ref_raw = np.asarray(ref, dtype=np.float32)
     pred_show, unit_from_style = _convert_for_display(var, pred_raw, style_profile)
@@ -295,7 +466,7 @@ def draw_diff_fill(
         diff=diff,
     )
 
-    extent = _normalize_extent(extent)
+    extent = _resolve_extent_with_default(extent, style_profile)
     fig_style = get_style(style_profile).get("figure", {})
     figsize = tuple(fig_style.get("figsize_fill", (7.0, 3.6)))
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
@@ -306,10 +477,8 @@ def draw_diff_fill(
     units_use = units or unit_from_style
     if units_use:
         t += f" ({units_use})"
-    ax.set_title(t)
-    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    if units_use:
-        cb.set_label(units_use)
+    _set_title(ax, t, style_profile)
+    _add_colorbar(fig, ax, im, units_use, style_profile)
     fig.tight_layout()
     fig.savefig(out_png)
     plt.close(fig)
@@ -364,6 +533,7 @@ def draw_wind_vector(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    _apply_font_style(style_profile)
     u = np.asarray(u, dtype=np.float32)
     v = np.asarray(v, dtype=np.float32)
     if u.shape != v.shape or u.ndim != 2:
@@ -375,7 +545,7 @@ def draw_wind_vector(
     geo_requested = bool(with_geo)
     geo_ok = geo_requested and ccrs is not None
     geo_error = ""
-    extent = _normalize_extent(extent)
+    extent = _resolve_extent_with_default(extent, style_profile)
     speed = np.sqrt(u * u + v * v)
     vec_style = get_vector_style(style_profile)
     stride_use = _resolve_vector_stride(extent, stride, vec_style)
@@ -390,9 +560,8 @@ def draw_wind_vector(
         "pivot": str(vec_style.get("pivot", "middle")),
     }
 
-    lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
-    lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
-    lon2d, lat2d = np.meshgrid(lon, lat)
+    # 使用缓存的经纬度网格
+    lon2d, lat2d = _get_latlon_grid(u.shape[0], u.shape[1])
 
     if geo_ok:
         try:
@@ -401,9 +570,8 @@ def draw_wind_vector(
             fig = plt.figure(figsize=figsize, dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
-            ax.coastlines(linewidth=0.5)
-            if cfeature is not None:
-                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+            # 应用地图要素
+            _apply_map_features(ax, style_profile, ccrs, cfeature)
             bg = ax.imshow(
                 speed,
                 extent=extent,
@@ -452,9 +620,8 @@ def draw_wind_vector(
         ax.set_ylabel("lat")
 
     t = title or f"uv10 vector t+{lead_hour:03d}"
-    ax.set_title(t)
-    cb = fig.colorbar(bg, ax=ax, fraction=0.046, pad=0.03)
-    cb.set_label("m s^-1")
+    _set_title(ax, t, style_profile)
+    _add_colorbar(fig, ax, bg, "m s^-1", style_profile)
     # Keep one stable legend arrow for readability across leads.
     ax.quiverkey(
         q,
@@ -568,6 +735,7 @@ def draw_msl_wind(
         return out_png, out_json
 
     Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    _apply_font_style(style_profile)
     msl_raw = np.asarray(msl, dtype=np.float32)
     u = np.asarray(u, dtype=np.float32)
     v = np.asarray(v, dtype=np.float32)
@@ -580,10 +748,10 @@ def draw_msl_wind(
     geo_requested = bool(with_geo)
     geo_ok = geo_requested and ccrs is not None
     geo_error = ""
-    extent = _normalize_extent(extent)
-    lat = np.linspace(90.0, -90.0, u.shape[0], dtype=np.float32)
-    lon = np.linspace(0.0, 360.0, u.shape[1], endpoint=False, dtype=np.float32)
-    lon2d, lat2d = np.meshgrid(lon, lat)
+    extent = _resolve_extent_with_default(extent, style_profile)
+
+    # 使用缓存的经纬度网格
+    lon2d, lat2d = _get_latlon_grid(u.shape[0], u.shape[1])
 
     msl_show, unit_from_style = _convert_for_display("msl", msl_raw, style_profile)
     fill_cfg = get_fill_style("msl", style_profile)
@@ -610,9 +778,8 @@ def draw_msl_wind(
             fig = plt.figure(figsize=figsize, dpi=dpi)
             ax = plt.axes(projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
-            ax.coastlines(linewidth=0.5)
-            if cfeature is not None:
-                ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25)
+            # 应用地图要素
+            _apply_map_features(ax, style_profile, ccrs, cfeature)
             bg = ax.imshow(
                 msl_show,
                 extent=extent,
@@ -690,9 +857,8 @@ def draw_msl_wind(
         ax.set_ylabel("lat")
 
     t = title or f"msl+uv10 t+{lead_hour:03d}"
-    ax.set_title(t)
-    cb = fig.colorbar(bg, ax=ax, fraction=0.046, pad=0.03)
-    cb.set_label(unit_from_style or "hPa")
+    _set_title(ax, t, style_profile)
+    _add_colorbar(fig, ax, bg, unit_from_style or "hPa", style_profile)
     ax.quiverkey(
         q,
         X=float(vec_style.get("key_pos_x", 0.86)),

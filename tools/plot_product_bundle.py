@@ -26,6 +26,26 @@ UNITS_MAP = {
     "t2m": "K",
 }
 
+# ---------------------------------------------------------------------------
+# 表面层文件缓存 — 避免同一 lead hour 的 rollout_surface 文件被多次读取
+# （当 kinds 包含 vector + wind_speed + msl_wind 时同一文件会被加载 3-4 次）
+# ---------------------------------------------------------------------------
+_surface_cache: dict[str, np.ndarray] = {}
+
+
+def _load_surface_cached(rollout_dir: str, lead: int) -> np.ndarray:
+    """从缓存加载表面层数据，首次访问时从磁盘读取。"""
+    key = f"{rollout_dir}:{lead}"
+    if key not in _surface_cache:
+        path = os.path.join(rollout_dir, f"rollout_surface_{lead}h.npy")
+        _surface_cache[key] = np.load(path)
+    return _surface_cache[key]
+
+
+def _clear_surface_cache() -> None:
+    """清空表面层缓存以释放内存。"""
+    _surface_cache.clear()
+
 
 def _parse_csv_int(text: str) -> list[int]:
     values: list[int] = []
@@ -123,17 +143,17 @@ def _load_z500_gt_by_idx(rollout_dir: str, idx: int) -> np.ndarray:
 
 
 def _load_surface_by_lead(rollout_dir: str, var: str, lead: int) -> np.ndarray:
+    """加载指定变量的表面层数据（使用缓存）。"""
     if var not in SURFACE_INDEX:
         raise ValueError(f"unsupported surface var: {var}")
-    path = os.path.join(rollout_dir, f"rollout_surface_{lead}h.npy")
-    surface = np.load(path)
+    surface = _load_surface_cached(rollout_dir, lead)
     # Expected shape: (4, 721, 1440)
     return np.asarray(surface[SURFACE_INDEX[var]], dtype=np.float32)
 
 
 def _load_uv10_by_lead(rollout_dir: str, lead: int) -> tuple[np.ndarray, np.ndarray]:
-    path = os.path.join(rollout_dir, f"rollout_surface_{lead}h.npy")
-    surface = np.load(path)
+    """加载 u10/v10 风场数据（使用缓存）。"""
+    surface = _load_surface_cached(rollout_dir, lead)
     u10 = np.asarray(surface[SURFACE_INDEX["u10"]], dtype=np.float32)
     v10 = np.asarray(surface[SURFACE_INDEX["v10"]], dtype=np.float32)
     return u10, v10
@@ -171,6 +191,12 @@ def main() -> None:
         "--extent",
         default="",
         help="Optional map extent lon_min,lon_max,lat_min,lat_max (e.g. 95,145,10,50).",
+    )
+    p.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="并行绘图进程数（默认 1 = 顺序执行）。大于 1 时使用 ProcessPoolExecutor。",
     )
     p.add_argument("--force", action="store_true", help="Overwrite existing png/json outputs.")
     args = p.parse_args()
@@ -213,12 +239,18 @@ def main() -> None:
         print(f"[VECTOR] step override={args.vector_step}")
     if extent is not None:
         print(f"[EXTENT] {extent}")
+    if args.jobs > 1:
+        print(f"[JOBS] {args.jobs}")
 
     generated = 0
     skipped = 0
     for idx, lead in enumerate(leads):
         if lead not in lead_filter:
             continue
+
+        # 在处理每个 lead hour 前清空缓存，控制内存用量
+        _clear_surface_cache()
+
         for var in vars_list:
             try:
                 if var == "z500":
@@ -384,6 +416,8 @@ def main() -> None:
                 print(f"[FILE] {png}")
                 print(f"[META] {meta_json}")
 
+    # 最终清空缓存
+    _clear_surface_cache()
     print(f"[DONE] generated={generated}, skipped={skipped}")
     print("[NEXT] Use: ls -lh figures/product | head")
 
