@@ -58,3 +58,6 @@ pangu_weather_repro.egg-info/
 
 # packaged run artifacts
 artifacts/day7/run_artifacts_*.tgz
+
+# local run archives (do not commit)
+artifacts/_runs/
