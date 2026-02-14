@@ -91,7 +91,7 @@ else:
   print("providers:", "N/A")
 PY
 else
-  echo "WARN: scripts/run_cpu.sh not found; skipping CPU providers"
+  echo "WARN: scripts/run_cpu.sh not found; skipping CPU providers" # fi-else 与上方 if 配对
 fi
 
 if [[ -x "$ROOT_DIR/scripts/run_gpu.sh" ]]; then

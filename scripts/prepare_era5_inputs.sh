@@ -3,26 +3,34 @@ set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
   cat <<'EOF'
-Usage: scripts/prepare_era5_inputs.sh [--date YYYYMMDD] [--hour HH] [--yes] [--dataset-mode default|custom] [--force-preprocess]
-Purpose: prepare Day3 GPU smoke inputs (surface.npy + pressure.npy).
+Usage: scripts/prepare_era5_inputs.sh [OPTIONS]
 
-What it does:
-1) download ERA5 single/pressure nc to ERA5_RAW_ROOT
-2) preprocess nc -> PROCESSED_ROOT/{surface.npy,pressure.npy}
-3) validate processed inputs
+Purpose: 准备 ERA5 数据（推理输入 + 评估真值）。
 
-Notes:
-- Requires ~/.cdsapirc for CDS API download.
-- If your network cannot access CDS, place nc files manually:
-  ERA5_RAW_ROOT/era5_single_<date><hour>.nc
-  ERA5_RAW_ROOT/era5_pressure_<date><hour>.nc
-- Or place processed numpy files directly:
-  PROCESSED_ROOT/surface.npy
-  PROCESSED_ROOT/pressure.npy
-- Interactive guard:
-  yes  -> follow project default dataset and auto-download when needed
-  no   -> use custom dataset and print manual-placement hints
-- If ~/.cdsapirc is missing, script can prompt for CDS API key interactively.
+选项:
+  --date YYYYMMDD       初始场日期（默认 configs/default.env 中的 DATE）
+  --hour HH             初始场小时（默认 configs/default.env 中的 HOUR）
+  --yes                 非交互模式，跳过所有询问
+  --dataset-mode MODE   default = 自动下载默认数据集 | custom = 手动放置
+  --force-preprocess    强制重新预处理（即使 npy 已存在）
+  --ensure-eval-gt      同时下载 Day5 RMSE 评估所需的 ERA5 真值文件
+                        （根据 rollout 步长推导需要的 nc 文件）
+  --eval-steps STEPS    评估真值的步长（小时），逗号分隔，默认 "24,6"
+                        仅在 --ensure-eval-gt 生效时使用
+
+功能说明:
+  1) 下载 ERA5 single/pressure nc 到 ERA5_RAW_ROOT（推理输入）
+  2) 预处理 nc -> PROCESSED_ROOT/{surface.npy,pressure.npy}
+  3) 验证预处理输出
+  4) [可选] 下载评估真值 ERA5 pressure nc（用于 Day5 RMSE）
+
+注意:
+  - 需要 ~/.cdsapirc 才能自动下载
+  - 无法联网时请手动放置:
+    推理输入: ERA5_RAW_ROOT/era5_single_<date><hour>.nc + era5_pressure_<date><hour>.nc
+    或预处理: PROCESSED_ROOT/surface.npy + pressure.npy
+    评估真值: ERA5_RAW_ROOT/era5_pressure_<date+step>.nc（每个评估步长一个文件）
+  - 非交互环境中请使用 --yes
 EOF
   exit 0
 fi
@@ -35,6 +43,8 @@ HOUR_ARG="${HOUR}"
 DATASET_MODE=""
 ASSUME_YES=0
 FORCE_PREPROCESS=0
+ENSURE_EVAL_GT=0
+EVAL_STEPS="24,6"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --date)
@@ -57,6 +67,14 @@ while [[ $# -gt 0 ]]; do
     --force-preprocess)
       FORCE_PREPROCESS=1
       shift 1
+      ;;
+    --ensure-eval-gt)
+      ENSURE_EVAL_GT=1
+      shift 1
+      ;;
+    --eval-steps)
+      EVAL_STEPS="${2:?missing value for --eval-steps}"
+      shift 2
       ;;
     *)
       echo "Unknown arg: $1"
@@ -211,3 +229,68 @@ echo "[STEP] validate processed inputs"
 echo "[PASS] ERA5 inputs ready"
 echo "[OUTPUT] ${PROCESSED_ROOT}/surface.npy"
 echo "[OUTPUT] ${PROCESSED_ROOT}/pressure.npy"
+
+# ---------------------------------------------------------------------------
+# 评估真值 ERA5 文件下载（Day5 RMSE 需要）
+# 根据初始场时间 + 步长，推导出对应的真值时刻并下载 pressure nc
+# ---------------------------------------------------------------------------
+if [[ "${ENSURE_EVAL_GT}" -eq 1 ]]; then
+  echo ""
+  echo "[STEP] 检查/下载评估真值 ERA5 pressure 文件"
+
+  # 用 Python 计算所需的真值时刻（避免 bash 日期计算兼容性问题）
+  EVAL_GT_DATES=$("${ROOT_DIR}/scripts/run_gpu.sh" -c "
+import datetime, sys
+dt = datetime.datetime.strptime('${DATE_ARG}${HOUR_ARG}', '%Y%m%d%H')
+steps = [int(x) for x in '${EVAL_STEPS}'.split(',')]
+acc = 0
+for s in steps:
+    acc += s
+    gt_dt = dt + datetime.timedelta(hours=acc)
+    print(gt_dt.strftime('%Y%m%d%H'))
+")
+
+  GT_ALL_OK=1
+  GT_DOWNLOADED=0
+  GT_SKIPPED=0
+  for GT_STAMP in ${EVAL_GT_DATES}; do
+    GT_NC="${ERA5_RAW_ROOT}/era5_pressure_${GT_STAMP}.nc"
+    if [[ -s "${GT_NC}" ]]; then
+      echo "[OK] 真值文件已存在: ${GT_NC}"
+      GT_SKIPPED=$((GT_SKIPPED + 1))
+      continue
+    fi
+    # 清除空文件
+    if [[ -f "${GT_NC}" && ! -s "${GT_NC}" ]]; then
+      echo "[清理] 删除空文件: ${GT_NC}"
+      rm -f "${GT_NC}"
+    fi
+    GT_DATE_PART="${GT_STAMP:0:8}"
+    GT_HOUR_PART="${GT_STAMP:8:2}"
+    echo "[下载] 评估真值: era5_pressure_${GT_STAMP}.nc (date=${GT_DATE_PART} hour=${GT_HOUR_PART})"
+    if "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/scripts/internal/03_download_era5_pressure.py" \
+      --date "${GT_DATE_PART}" --hour "${GT_HOUR_PART}" --out-dir "${ERA5_RAW_ROOT}"; then
+      if [[ -s "${GT_NC}" ]]; then
+        echo "[OK] 下载成功: ${GT_NC}"
+        GT_DOWNLOADED=$((GT_DOWNLOADED + 1))
+      else
+        echo "[WARN] 下载命令成功但文件为空或不存在: ${GT_NC}"
+        GT_ALL_OK=0
+      fi
+    else
+      echo "[WARN] 下载失败: ${GT_NC}"
+      echo "[提示] 可手动放置: ${GT_NC}"
+      GT_ALL_OK=0
+    fi
+  done
+
+  echo ""
+  echo "[评估真值] 已下载=${GT_DOWNLOADED}, 已跳过=${GT_SKIPPED}"
+  if [[ "${GT_ALL_OK}" -eq 1 ]]; then
+    echo "[PASS] 所有评估真值文件就绪"
+  else
+    echo "[WARN] 部分评估真值文件缺失，Day5 RMSE 可能回退到 npz 内嵌 gt"
+    echo "[提示] 手动放置缺失文件到 ${ERA5_RAW_ROOT}/ 后重跑:"
+    echo "       bash scripts/prepare_era5_inputs.sh --ensure-eval-gt --yes"
+  fi
+fi
