@@ -1,10 +1,26 @@
-import argparse, os, time
+import argparse, os, time, ssl
 try:
     import cdsapi
 except Exception as exc:
     raise RuntimeError(
         "cdsapi is required. Run: scripts/install_extras.sh download"
     ) from exc
+
+def _try_retrieve(client_kwargs, dataset, req, target, retries=3):
+    """Try to retrieve with given client kwargs, return True on success."""
+    c = cdsapi.Client(**client_kwargs)
+    for i in range(retries):
+        try:
+            c.retrieve(dataset, req, target)
+            print("saved:", target, "size:", os.path.getsize(target))
+            return True
+        except Exception as e:
+            is_ssl = "SSL" in str(e) or "CERTIFICATE" in str(e)
+            if is_ssl and i == 0:
+                return False
+            print(f"[retry {i+1}/{retries}] failed:", e)
+            time.sleep(10)
+    return False
 
 def main():
     p = argparse.ArgumentParser()
@@ -25,7 +41,6 @@ def main():
         "surface_pressure",
     ]
 
-    c = cdsapi.Client()
     req = {
         "product_type": "reanalysis",
         "format": "netcdf",
@@ -36,15 +51,13 @@ def main():
         "time": [f"{args.hour}:00"],
     }
 
-    # 简单重试
-    for i in range(3):
-        try:
-            c.retrieve("reanalysis-era5-single-levels", req, target)
-            print("saved:", target, "size:", os.path.getsize(target))
-            return
-        except Exception as e:
-            print(f"[retry {i+1}/3] failed:", e)
-            time.sleep(10)
+    # Try with normal SSL first; if cert error, retry with verify disabled
+    if _try_retrieve({}, "reanalysis-era5-single-levels", req, target):
+        return
+    print("[WARN] SSL certificate error, retrying with verify=False ...")
+    if _try_retrieve({"verify": 0}, "reanalysis-era5-single-levels", req, target):
+        return
+
     raise SystemExit("download failed after retries")
 
 if __name__ == "__main__":
