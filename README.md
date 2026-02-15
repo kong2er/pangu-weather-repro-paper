@@ -65,9 +65,9 @@ git clone git@github.com:kong2er/pangu-weather-repro-paper.git
 cd pangu-weather-repro-paper
 ```
 
-### 2.4 安装 tmux（防断线）
+### 2.4 安装 tmux（防断线，必装）
 
-SSH 连接不稳定时任务会中断。**强烈建议**使用 tmux：
+AutoDL 容器默认不带 tmux，**必须先装**，否则执行 tmux 命令会导致 SSH 断开：
 
 ```bash
 apt update && apt install -y tmux
@@ -102,18 +102,19 @@ chmod 600 ~/.cdsapirc
 
 ## 3. 一键复现（最快路径）
 
-以下 6 条命令从零到完成，推荐在 tmux 会话中执行：
+以下命令从零到完成，推荐在 tmux 会话中执行：
 
 ```bash
 cd /root/projects/pangu-weather-repro-paper
+apt update && apt install -y tmux                          # 首次需安装 tmux
 bash scripts/create_cpu_venv.sh && bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
 bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
-bash scripts/run_360h_split.sh --auto-retry
-bash scripts/one_shot_verify.sh --yes
+tmux new -s repro 'bash scripts/run_360h_split.sh --auto-retry && bash scripts/one_shot_verify.sh --yes'
+# 断线后重连: tmux attach -t repro
 ```
 
-`one_shot_verify.sh` 会自动完成：环境预检 → CPU/GPU 冒烟 → ERA5 真值检查 → RMSE 评估 → 论文图 → 产品图 → E 阶段验收 → manifest 生成。
+`one_shot_verify.sh` 会自动完成：环境预检 → CPU/GPU 冒烟 → ERA5 真值检查 → **rollout 数据生成** → RMSE 评估 → 论文图 → 产品图 → E 阶段验收 → manifest 生成。
 
 **预计总耗时**：约 1-2 小时（含数据下载，RTX 4090 基准）。
 
@@ -351,7 +352,9 @@ bash scripts/final_verify.sh --with-e-stage --e-stage-force
 
 | 故障现象 | 原因 | 修复命令 |
 |----------|------|----------|
-| `SSL_CERTIFICATE_VERIFY_FAILED` | AutoDL 容器缺少 CA 证书 | `source configs/default.env`（自动通过 certifi 修复） |
+| `tmux: command not found` 后 SSH 断开 | AutoDL 容器未预装 tmux | `apt update && apt install -y tmux` |
+| `SSL_CERTIFICATE_VERIFY_FAILED` | AutoDL 容器缺少 CA 证书 | 脚本已自动降级为 `verify=False`；或 `source configs/default.env` |
+| RMSE 缺少 `eval_z500.npz` | Day4 rollout 未运行 | `one_shot_verify.sh` 已自动补跑；或手动：`scripts/run_gpu.sh tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"` |
 | `CUDAExecutionProvider` 缺失 | GPU 环境未正确安装或未激活 | `bash scripts/create_gpu_venv.sh --update && source scripts/env_gpu.sh` |
 | `libcublasLt.so.12 MISSING` | CUDA 库不在 `LD_LIBRARY_PATH` | `source scripts/env_gpu.sh` |
 | 绘图依赖缺失（matplotlib/scipy） | 可选依赖未安装 | `bash scripts/install_extras.sh plots --force` |
@@ -363,6 +366,7 @@ bash scripts/final_verify.sh --with-e-stage --e-stage-force
 | 已有核查在运行 | lockfile 冲突 | `bash scripts/one_shot_verify.sh --force-kill --yes` |
 | Python 环境不对 / ModuleNotFoundError | 未 source 环境脚本 | 确保先执行 `source scripts/env_gpu.sh` |
 | nohup 日志空白 | Python 输出缓冲 | 使用 `one_shot_verify.sh`（已内置 `PYTHONUNBUFFERED=1`） |
+| tmux `[exited]` 不知结果 | 脚本已结束（成功或失败） | `cat logs/one_shot_verify_*.log \| tail -50` 查看日志 |
 
 ---
 

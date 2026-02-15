@@ -367,11 +367,42 @@ ensure_eval_gt() {
   }
 }
 
+ensure_rollout() {
+  local rollout_dir="${OUTPUT_ROOT}/day4_rollout_30h"
+  local eval_npz="${rollout_dir}/eval_z500.npz"
+
+  if [[ -f "${eval_npz}" && -s "${eval_npz}" ]]; then
+    log "[OK] rollout 数据已存在: ${eval_npz}"
+    return 0
+  fi
+
+  log_section "阶段 2.8: Day4 Rollout（RMSE 前置）"
+  log "[INFO] eval_z500.npz 不存在，自动运行 rollout ..."
+  "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/tools/day4_rollout.py" \
+    --steps 24,6 --noarena --out-dir "${rollout_dir}" || {
+    log "[FAIL] Day4 rollout 失败"
+    ERRORS=$((ERRORS + 1))
+    return 1
+  }
+
+  if [[ -f "${eval_npz}" && -s "${eval_npz}" ]]; then
+    log "[PASS] rollout 数据生成完成"
+  else
+    log "[FAIL] rollout 运行完成但 eval_z500.npz 未生成"
+    ERRORS=$((ERRORS + 1))
+    return 1
+  fi
+}
+
 run_rmse() {
   if [[ "${SKIP_RMSE}" -eq 1 ]]; then
     log "[跳过] Day5 RMSE"
     return 0
   fi
+
+  # 确保 rollout 数据存在
+  ensure_rollout
+
   log_section "阶段 3: Day5 RMSE 评估"
 
   local force_flag=""
