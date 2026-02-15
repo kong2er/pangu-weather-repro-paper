@@ -21,17 +21,17 @@ env-gpu:
 	UV_VENV=.venv-gpu uv sync --extra gpu
 
 models:
-	bash scripts/01_download_models.sh
+	bash scripts/internal/01_download_models.sh
 
 era5-0900:
 	source configs/default.env
-	uv run python scripts/03_download_era5_single.py --date 20230709 --hour 00
-	uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 00
+	uv run python scripts/internal/03_download_era5_single.py --date 20230709 --hour 00
+	uv run python scripts/internal/03_download_era5_pressure.py --date 20230709 --hour 00
 
 era5-0906:
 	source configs/default.env
-	uv run python scripts/03_download_era5_single.py --date 20230709 --hour 06
-	uv run python scripts/03_download_era5_pressure.py --date 20230709 --hour 06
+	uv run python scripts/internal/03_download_era5_single.py --date 20230709 --hour 06
+	uv run python scripts/internal/03_download_era5_pressure.py --date 20230709 --hour 06
 
 preprocess:
 	source configs/default.env

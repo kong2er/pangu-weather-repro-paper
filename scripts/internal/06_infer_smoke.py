@@ -71,9 +71,9 @@ def _fix_swapped_feed(sess, feed: dict) -> dict:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "/root/autodl-tmp/pangu-weather-repro/models"))
-    p.add_argument("--processed-dir", default=os.environ.get("PROCESSED_ROOT", "/root/autodl-tmp/pangu-weather-repro/processed"))
-    p.add_argument("--out-dir", default=os.environ.get("OUTPUT_ROOT", "/root/autodl-tmp/pangu-weather-repro/outputs"))
+    p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "models"))
+    p.add_argument("--processed-dir", default=os.environ.get("PROCESSED_ROOT", "processed"))
+    p.add_argument("--out-dir", default=os.environ.get("OUTPUT_ROOT", "outputs"))
     p.add_argument("--step", choices=["6", "24"], default="6", help="smoke step hours")
     p.add_argument("--use-gpu", action="store_true")
     p.add_argument("--threads", type=int, default=int(os.environ.get("OMP_NUM_THREADS", "1")))

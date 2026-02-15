@@ -53,7 +53,7 @@ while [[ $# -gt 0 ]]; do
  done
 
 if [[ -z "${OUT_DIR}" ]]; then
-  OUT_DIR="/root/autodl-tmp/pangu-weather-repro/outputs/forecast_360h_$(date +%Y%m%d_%H%M%S)"
+  OUT_DIR="${OUTPUT_ROOT}/forecast_360h_$(date +%Y%m%d_%H%M%S)"
 fi
 
 echo "[STEP] 360h forecast (pangu_ref)"

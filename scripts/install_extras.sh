@@ -24,7 +24,7 @@ if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   exit 1
 fi
 
-PIP="${VENV_DIR}/bin/python -m pip"
+UV_PIP="uv pip install --python ${VENV_DIR}/bin/python"
 
 case "${MODE}" in
   rmse)
@@ -36,7 +36,7 @@ PY
         exit 0
       fi
     fi
-    ${PIP} install -U netCDF4 cftime
+    ${UV_PIP} netCDF4 cftime
     ;;
   plots)
     if [[ "${FORCE}" != "--force" ]]; then
@@ -47,7 +47,7 @@ PY
         exit 0
       fi
     fi
-    ${PIP} install -U matplotlib cartopy scipy
+    ${UV_PIP} matplotlib cartopy scipy
     ;;
   download)
     if [[ "${FORCE}" != "--force" ]]; then
@@ -58,7 +58,7 @@ PY
         exit 0
       fi
     fi
-    ${PIP} install -U cdsapi requests tqdm pyyaml gdown
+    ${UV_PIP} cdsapi requests tqdm pyyaml gdown
     ;;
   streamlit)
     if [[ "${FORCE}" != "--force" ]]; then
@@ -69,7 +69,7 @@ PY
         exit 0
       fi
     fi
-    ${PIP} install -U streamlit
+    ${UV_PIP} streamlit
     ;;
   all)
     if [[ "${FORCE}" != "--force" ]]; then
@@ -80,7 +80,7 @@ PY
         exit 0
       fi
     fi
-    ${PIP} install -U netCDF4 cftime matplotlib cartopy scipy cdsapi requests tqdm pyyaml gdown streamlit
+    ${UV_PIP} netCDF4 cftime matplotlib cartopy scipy cdsapi requests tqdm pyyaml gdown streamlit
     ;;
   *)
     echo "Unknown mode: ${MODE}"

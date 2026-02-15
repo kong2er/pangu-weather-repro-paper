@@ -8,9 +8,15 @@
 ```bash
 cd /root/projects/pangu-weather-repro-paper
 source configs/default.env
+
+# 确保 uv 已安装（本项目唯一包管理器）
+uv --version || { curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc; }
 ```
 
 ## S1 环境与依赖
+
+> **前置要求**：uv >= 0.4 已安装（见 S0）。所有虚拟环境创建和依赖安装均通过 uv 完成。
+
 CPU 环境：
 ```bash
 bash scripts/create_cpu_venv.sh
@@ -69,7 +75,7 @@ bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
 
 ### 运行 GPU smoke
 ```bash
-bash scripts/run_day3_smoke_gpu.sh
+bash scripts/internal/run_day3_smoke_gpu.sh
 ```
 通过标准：生成 `$OUTPUT_ROOT/smoke_24h_report.json`。
 
@@ -261,7 +267,7 @@ bash scripts/run_360h_split.sh --auto-retry
 ### 11. `blueprint unavailable (No module named 'cmaps')`
 ```bash
 source scripts/env_gpu.sh
-scripts/run_gpu.sh -m pip install -U cmaps pandas xarray
+uv pip install --python .venv-gpu/bin/python cmaps pandas xarray
 ```
 
 ### 12. Streamlit 外网 503

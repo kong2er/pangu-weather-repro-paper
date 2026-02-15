@@ -57,11 +57,11 @@ def main():
     parser.add_argument("--hour", default="00")
     parser.add_argument(
         "--raw-dir",
-        default=os.environ.get("ERA5_RAW_ROOT", "/root/autodl-tmp/pangu-weather-repro/era5_raw"),
+        default=os.environ.get("ERA5_RAW_ROOT", "era5_raw"),
     )
     parser.add_argument(
         "--out-dir",
-        default=os.environ.get("PROCESSED_ROOT", "/root/autodl-tmp/pangu-weather-repro/processed"),
+        default=os.environ.get("PROCESSED_ROOT", "processed"),
     )
     args = parser.parse_args()
 

@@ -9,7 +9,7 @@ APPLY=0
 
 source configs/default.env
 
-OUT="${OUTPUT_ROOT:-/root/autodl-tmp/pangu-weather-repro/outputs}"
+OUT="${OUTPUT_ROOT}"
 
 echo "[INFO] OUT=$OUT"
 echo "[INFO] Exclude: $OUT/day4_rollout_30h/*"

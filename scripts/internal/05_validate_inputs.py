@@ -17,7 +17,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Validate processed inputs against contracts")
     p.add_argument(
         "--processed-dir",
-        default=os.environ.get("PROCESSED_ROOT", "/root/autodl-tmp/pangu-weather-repro/processed"),
+        default=os.environ.get("PROCESSED_ROOT", "processed"),
     )
     args = p.parse_args()
 

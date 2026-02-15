@@ -26,12 +26,19 @@ tail -f verify.log
   - `--no-eval-gt`：不下载评估真值
 
 ## 1. 环境初始化（CPU/GPU）
+
+> **前置要求**：本项目使用 [uv](https://github.com/astral-sh/uv)（Rust 实现的 Python 包管理器）作为唯一包管理工具。请确保 uv >= 0.4 已安装：
+> ```bash
+> curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc
+> uv --version  # 验证
+> ```
+
 - 命令：
 ```bash
 bash scripts/create_cpu_venv.sh
 bash scripts/create_gpu_venv.sh
 ```
-- 实际意义：创建并维护幂等虚拟环境，避免不同机器依赖漂移。
+- 实际意义：通过 uv 创建并维护幂等虚拟环境，避免不同机器依赖漂移。
 
 ## 2. 环境切换
 - CPU：
@@ -48,7 +55,7 @@ source scripts/env_gpu.sh
 ## 3. CPU 冒烟测试（Day8）
 - 命令：
 ```bash
-bash scripts/run_day8_cpu_smoke.sh
+bash scripts/internal/run_day8_cpu_smoke.sh
 ```
 - 实际意义：快速验证包结构、输入输出契约、基础执行链路。
 
@@ -86,7 +93,7 @@ bash scripts/prepare_era5_inputs.sh --dataset-mode custom
 ## 5. GPU 冒烟测试（Day3）
 - 命令：
 ```bash
-bash scripts/run_day3_smoke_gpu.sh
+bash scripts/internal/run_day3_smoke_gpu.sh
 ```
 - 实际意义：验证 24h 模型可在 GPU 侧正常推理并生成 smoke 报告。
 
@@ -193,6 +200,9 @@ cat artifacts/manifest.json | python3 -m json.tool
 
 ### 最短路径（一键）
 ```bash
+# 0. 确保 uv 已安装
+uv --version || { curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc; }
+
 bash scripts/create_cpu_venv.sh && bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
 bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt

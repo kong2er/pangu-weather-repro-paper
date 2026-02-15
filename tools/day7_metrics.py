@@ -157,8 +157,8 @@ def main() -> None:
     p.add_argument("--md", default=os.path.join("docs", "day7_results.md"))
     args = p.parse_args()
 
-    output_root = os.environ.get("OUTPUT_ROOT", "/root/autodl-tmp/pangu-weather-repro/outputs")
-    era5_root = os.environ.get("ERA5_RAW_ROOT", "/root/autodl-tmp/pangu-weather-repro/era5_raw")
+    output_root = os.environ.get("OUTPUT_ROOT", "outputs")
+    era5_root = os.environ.get("ERA5_RAW_ROOT", "era5_raw")
 
     rollout_dir = args.rollout_dir or _latest_rollout_dir(output_root)
     meta_path = os.path.join(rollout_dir, "eval_z500_meta.json")

@@ -26,7 +26,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--date", default="20230709")  # YYYYMMDD
     p.add_argument("--hour", default="00")        # HH
-    p.add_argument("--out-dir", default="/root/autodl-tmp/pangu-weather-repro/era5_raw")
+    p.add_argument("--out-dir", default=os.environ.get("ERA5_RAW_ROOT", "era5_raw"))
     args = p.parse_args()
 
     y, m, d = args.date[:4], args.date[4:6], args.date[6:8]

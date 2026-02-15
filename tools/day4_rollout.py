@@ -282,8 +282,8 @@ def _write_eval_package(
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "/root/autodl-tmp/pangu-weather-repro/models"))
-    p.add_argument("--processed-dir", default=os.environ.get("PROCESSED_ROOT", "/root/autodl-tmp/pangu-weather-repro/processed"))
+    p.add_argument("--models-dir", default=os.environ.get("MODELS_ROOT", "models"))
+    p.add_argument("--processed-dir", default=os.environ.get("PROCESSED_ROOT", "processed"))
     p.add_argument("--out-dir", required=True)
     p.add_argument("--steps", default="24,6")
     p.add_argument("--init-pressure", default="")

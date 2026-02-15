@@ -32,7 +32,8 @@ if [[ -z "${SSL_CERT_FILE:-}" && -z "${REQUESTS_CA_BUNDLE:-}" ]]; then
   unset _CERTIFI_CA _PY
 fi
 
-MODEL_DIR="/root/autodl-tmp/pangu-weather-repro/models"
+source "${ROOT_DIR}/configs/default.env"
+MODEL_DIR="${MODELS_ROOT}"
 BASE_URL="https://huggingface.co/OpenEarthLab/Pangu-Weather/resolve/main"
 SOURCE="hf"
 MODE="download"

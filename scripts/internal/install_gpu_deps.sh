@@ -31,8 +31,7 @@ PY
   fi
 fi
 
-"${VENV_DIR}/bin/python" -m ensurepip --upgrade
-"${VENV_DIR}/bin/python" -m pip install -U \
+uv pip install --python "${VENV_DIR}/bin/python" \
   onnxruntime-gpu==1.23.2 \
   nvidia-cublas-cu12 \
   nvidia-cudnn-cu12 \

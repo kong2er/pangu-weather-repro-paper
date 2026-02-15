@@ -32,8 +32,7 @@ _local_junk/
 *.bak.*
 
 # outputs / archives
-/root/autodl-tmp/
-**/_archives/
+**/_archive/
 *.tgz
 configs/local.env
 

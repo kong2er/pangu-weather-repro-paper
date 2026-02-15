@@ -123,7 +123,7 @@ def _rmse(pred: np.ndarray, gt: np.ndarray) -> float:
 def main() -> None:
     p = argparse.ArgumentParser()
     default_pred = os.path.join(
-        os.environ.get("OUTPUT_ROOT", "/root/autodl-tmp/pangu-weather-repro/outputs"),
+        os.environ.get("OUTPUT_ROOT", "outputs"),
         "day4_rollout_30h",
         "eval_z500.npz",
     )

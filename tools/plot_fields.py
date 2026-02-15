@@ -138,7 +138,7 @@ def main() -> None:
     p.add_argument("--err-max", type=float, default=None)
     args = p.parse_args()
 
-    output_root = os.environ.get("OUTPUT_ROOT", "/root/autodl-tmp/pangu-weather-repro/outputs")
+    output_root = os.environ.get("OUTPUT_ROOT", "outputs")
     rollout_dir = args.rollout_dir or _preferred_rollout_dir(output_root)
     meta_path = args.meta or os.path.join(rollout_dir, "eval_z500_meta.json")
     if not os.path.exists(meta_path):

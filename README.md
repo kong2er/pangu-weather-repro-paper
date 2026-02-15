@@ -27,14 +27,30 @@
 
 ## 1. 环境要求
 
-| 项目 | 要求 |
-|------|------|
-| GPU | NVIDIA RTX 4090（24 GB）或同等 |
-| CUDA | 11.8+ |
-| 系统 | Linux（Ubuntu 20.04 / 22.04） |
-| Python | 3.10 ~ 3.11 |
-| 磁盘 | >= 50 GB（数据盘，AutoDL 为 `/root/autodl-tmp`） |
-| 网络 | 需访问 HuggingFace / CDS API（首次下载） |
+| 项目 | 最低要求 | 说明 |
+|------|----------|------|
+| GPU | NVIDIA（>= 16 GB 显存） | 推荐 RTX 4090（24 GB）；16 GB 卡可通过 `--auto-retry` 降载完成 |
+| CUDA | 11.8+ | 驱动需支持 CUDA 12.x（`nvidia-smi` 右上角版本） |
+| 系统 | Linux（x86_64） | Ubuntu 20.04 / 22.04；WSL2 亦可 |
+| Python | 3.10 | `uv` 会自动下载对应版本 |
+| uv | >= 0.4 | **必装**，本项目唯一包管理器（见下方安装方式） |
+| 磁盘 | >= 50 GB | ONNX 模型 ~8 GB + ERA5 数据 ~10 GB + 推理输出 ~20 GB |
+| 网络 | 首次需联网 | 下载 HuggingFace 模型 + CDS API ERA5 数据 |
+
+### 安装 uv
+
+```bash
+# 方式 1（推荐）：官方脚本
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 方式 2：pip
+pip install uv
+
+# 验证
+uv --version
+```
+
+> **为什么用 uv**：uv 是 Rust 实现的 Python 包管理器，安装速度比 pip 快 10-100 倍，且通过 `uv.lock` 锁文件保证环境可精确复现。本项目所有虚拟环境创建和依赖安装均通过 uv 完成。
 
 ---
 
@@ -57,7 +73,17 @@ ssh -p <端口> root@connect.westb.seetacloud.com
 
 在本地终端粘贴执行即可连接。
 
-### 2.3 首次 clone 仓库
+### 2.3 安装 uv（必装）
+
+本项目使用 uv 作为唯一包管理器，**必须在创建虚拟环境之前安装**：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc   # 让 uv 命令生效
+uv --version       # 验证安装成功
+```
+
+### 2.4 首次 clone 仓库
 
 ```bash
 mkdir -p /root/projects && cd /root/projects
@@ -65,7 +91,7 @@ git clone git@github.com:kong2er/pangu-weather-repro-paper.git
 cd pangu-weather-repro-paper
 ```
 
-### 2.4 安装 tmux（防断线，必装）
+### 2.5 安装 tmux（防断线，必装）
 
 AutoDL 容器默认不带 tmux，**必须先装**，否则执行 tmux 命令会导致 SSH 断开：
 
@@ -84,7 +110,7 @@ apt update && apt install -y tmux
 
 在 tmux 内运行长时间任务，即使 SSH 断开也不会丢失进度。
 
-### 2.5 配置 CDS API Key
+### 2.6 配置 CDS API Key
 
 ERA5 数据自动下载需要 CDS API 密钥。前往 https://cds.climate.copernicus.eu 注册并获取 API Key，然后创建配置文件：
 
@@ -107,6 +133,7 @@ chmod 600 ~/.cdsapirc
 ```bash
 cd /root/projects/pangu-weather-repro-paper
 apt update && apt install -y tmux                          # 首次需安装 tmux
+curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc  # 安装 uv（必装）
 bash scripts/create_cpu_venv.sh && bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
 bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
@@ -127,6 +154,7 @@ tmux new -s repro 'bash scripts/run_360h_split.sh --auto-retry && bash scripts/o
 | | |
 |---|---|
 | **耗时估算** | 5-10 min |
+| **前置要求** | uv >= 0.4 已安装（见 [第 1 节](#1-环境要求)） |
 | **通过标准** | `env_gpu.sh` 输出包含 `CUDAExecutionProvider` |
 
 ```bash
@@ -183,7 +211,7 @@ contracts smoke ok
 bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
 
 # 运行 GPU 24h 冒烟测试
-bash scripts/run_day3_smoke_gpu.sh
+bash scripts/internal/run_day3_smoke_gpu.sh
 ```
 
 数据准备脚本会自动完成：
@@ -330,7 +358,7 @@ bash scripts/final_verify.sh --with-e-stage --e-stage-force
 | `artifacts/manifest.json` | 全部产物路径 + SHA256 校验和 |
 | `logs/one_shot_verify_*.log` | 一键核查完整日志 |
 
-> **数据路径说明**：`$OUTPUT_ROOT` 默认为 `/root/autodl-tmp/pangu-weather-repro/outputs`，由 `configs/default.env` 定义。
+> **数据路径说明**：`$OUTPUT_ROOT` 等路径由 `configs/default.env` 定义。AutoDL 环境自动使用 `/root/autodl-tmp/pangu-weather-repro`；其他环境默认使用项目目录下 `data_root/`。可通过 `export DATA_ROOT=/your/path` 覆盖。
 
 ---
 
@@ -352,6 +380,7 @@ bash scripts/final_verify.sh --with-e-stage --e-stage-force
 
 | 故障现象 | 原因 | 修复命令 |
 |----------|------|----------|
+| `uv: command not found` | uv 未安装 | `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.bashrc` |
 | `tmux: command not found` 后 SSH 断开 | AutoDL 容器未预装 tmux | `apt update && apt install -y tmux` |
 | `SSL_CERTIFICATE_VERIFY_FAILED` | AutoDL 容器缺少 CA 证书 | 脚本已自动降级为 `verify=False`；或 `source configs/default.env` |
 | RMSE 缺少 `eval_z500.npz` | Day4 rollout 未运行 | `one_shot_verify.sh` 已自动补跑；或手动：`scripts/run_gpu.sh tools/day4_rollout.py --steps 24,6 --noarena --out-dir "$OUTPUT_ROOT/day4_rollout_30h"` |
@@ -388,7 +417,6 @@ pangu-weather-repro-paper/
 │   ├── install_extras.sh       #   安装可选依赖（rmse/plots/streamlit）
 │   ├── prepare_era5_inputs.sh  #   ERA5 数据下载与预处理
 │   ├── run_cpu.sh              #   CPU 冒烟
-│   ├── run_day3_smoke_gpu.sh   #   GPU 冒烟
 │   ├── run_gpu.sh              #   GPU 推理封装
 │   ├── run_360h_split.sh       #   360h 分段推理（含 auto-retry）
 │   ├── run_product_all.sh      #   产品图族生成
@@ -396,7 +424,7 @@ pangu-weather-repro-paper/
 │   ├── one_shot_verify.sh      #   一键核查（S1-S8 全流程）
 │   ├── verify_repo_health.sh   #   轻量健康检查
 │   ├── final_verify.sh         #   传统验收
-│   └── internal/               #   内部脚本（RMSE、出图、清理等）
+│   └── internal/               #   内部脚本（GPU 冒烟、RMSE、出图、清理等）
 │
 ├── tools/                      # 高级 CLI 工具
 │   ├── run_forecast.py         #   统一推理 CLI
@@ -423,7 +451,7 @@ pangu-weather-repro-paper/
 
 | 变量 | 默认路径 | 用途 |
 |------|----------|------|
-| `$DATA_ROOT` | `/root/autodl-tmp/pangu-weather-repro` | 数据根目录 |
+| `$DATA_ROOT` | AutoDL: `/root/autodl-tmp/pangu-weather-repro`；其他: `项目目录/data_root` | 数据根目录 |
 | `$ERA5_RAW_ROOT` | `$DATA_ROOT/era5_raw` | ERA5 原始 nc 文件 |
 | `$PROCESSED_ROOT` | `$DATA_ROOT/processed` | 预处理后 npy 文件 |
 | `$OUTPUT_ROOT` | `$DATA_ROOT/outputs` | 推理输出 |

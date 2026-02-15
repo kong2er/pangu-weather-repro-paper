@@ -253,7 +253,7 @@ preflight_check() {
     log "[OK] pangu_weather_repro 可导入"
   else
     log "[FAIL] pangu_weather_repro 导入失败"
-    log "[修复] cd ${ROOT_DIR} && pip install -e ."
+    log "[修复] cd ${ROOT_DIR} && uv pip install --python .venv-gpu/bin/python -e ."
     exit 1
   fi
 
@@ -271,20 +271,30 @@ preflight_check() {
   fi
   log "[OK] 核心依赖检查通过 (numpy, onnxruntime)"
 
-  # 检查绘图依赖（非致命）
+  # 检查绘图依赖（缺失则自动安装）
   if ! "${ROOT_DIR}/scripts/run_gpu.sh" -c "import matplotlib, scipy" 2>/dev/null; then
-    log "[WARN] 绘图依赖缺失 (matplotlib/scipy)"
-    log "[修复] bash scripts/install_extras.sh plots"
-    WARNINGS=$((WARNINGS + 1))
+    log "[INFO] 绘图依赖缺失 (matplotlib/scipy)，自动安装..."
+    if bash "${ROOT_DIR}/scripts/install_extras.sh" plots --force; then
+      log "[OK] 绘图依赖安装成功"
+    else
+      log "[FAIL] 绘图依赖安装失败"
+      log "[修复] bash scripts/install_extras.sh plots --force"
+      exit 1
+    fi
   else
     log "[OK] 绘图依赖检查通过 (matplotlib, scipy)"
   fi
 
-  # 检查 RMSE 依赖
+  # 检查 RMSE 依赖（缺失则自动安装）
   if ! "${ROOT_DIR}/scripts/run_gpu.sh" -c "import netCDF4" 2>/dev/null; then
-    log "[WARN] RMSE 评估依赖缺失 (netCDF4)"
-    log "[修复] bash scripts/install_extras.sh rmse"
-    WARNINGS=$((WARNINGS + 1))
+    log "[INFO] RMSE 评估依赖缺失 (netCDF4)，自动安装..."
+    if bash "${ROOT_DIR}/scripts/install_extras.sh" rmse --force; then
+      log "[OK] RMSE 依赖安装成功"
+    else
+      log "[FAIL] RMSE 依赖安装失败"
+      log "[修复] bash scripts/install_extras.sh rmse"
+      exit 1
+    fi
   else
     log "[OK] RMSE 依赖检查通过 (netCDF4)"
   fi
@@ -304,6 +314,37 @@ preflight_check() {
       fi
     fi
   fi
+
+  # 检查 ONNX 模型文件（GPU smoke / rollout 前置）
+  local models_ok=1
+  for _m in pangu_weather_24.onnx pangu_weather_6.onnx; do
+    if [[ ! -f "${MODELS_ROOT}/${_m}" ]]; then
+      models_ok=0
+      break
+    fi
+  done
+  if [[ "${models_ok}" -eq 0 ]]; then
+    log "[INFO] ONNX 模型缺失，自动下载..."
+    if bash "${ROOT_DIR}/scripts/internal/01_download_models.sh"; then
+      # 再次验证关键模型
+      if [[ -f "${MODELS_ROOT}/pangu_weather_24.onnx" ]]; then
+        log "[OK] ONNX 模型下载成功"
+      else
+        log "[FAIL] ONNX 模型下载完成但文件仍缺失"
+        log "[修复] bash scripts/internal/01_download_models.sh --dir ${MODELS_ROOT}"
+        exit 1
+      fi
+    else
+      log "[FAIL] ONNX 模型下载失败"
+      log "[修复] bash scripts/internal/01_download_models.sh --dir ${MODELS_ROOT}"
+      exit 1
+    fi
+  else
+    log "[OK] ONNX 模型文件存在"
+  fi
+
+  # 确保数据根目录存在
+  mkdir -p "${DATA_ROOT}" "${OUTPUT_ROOT}" "${MODELS_ROOT}"
 
   # 打印运行提示
   echo ""
