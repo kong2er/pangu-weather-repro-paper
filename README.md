@@ -1,157 +1,439 @@
-# Pangu-Weather Repro (Delivery Edition)
+# Pangu-Weather 复现指南
 
-本仓库面向"阶段化可复现交付"。复现人员只看三份文档即可：
-- `README.md`：最短执行路径
-- `RUNBOOK.md`：S1-S8 详细步骤与排错
-- `docs/DELIVERY_SUMMARY.md`：阶段目标、产物、验收矩阵
+**从零复现 Pangu-Weather 360h 预测并生成论文级图表。**
 
-功能调用速查：
-- `docs/FUNCTION_CALL_MANUAL_ZH.md`：按"功能 -> 命令 -> 实际意义"快速调用
+> **论文引用**
+> Bi, K., Xie, L., Zhang, H., Chen, X., Gu, X., & Tian, Q. (2023).
+> *Accurate medium-range global weather forecasting with 3D neural networks.*
+> Nature, 619, 533-538. https://doi.org/10.1038/s41586-023-06185-3
 
-## 一键核查（推荐）
+本仓库将 Pangu-Weather 官方 ONNX 权重 + ERA5 初始场，通过阶段化流程（S1-S8）完成：环境搭建 → 推理 → RMSE 评估 → 论文图 / 产品图 → 最终验收。整套流程在 RTX 4090 上约 **1-2 小时**即可完成（含数据下载）。
 
-SSH 断线安全的一键核查命令（推荐在 tmux 中运行）：
+---
+
+## 目录
+
+1. [环境要求](#1-环境要求)
+2. [AutoDL 开机设置（新人从零）](#2-autodl-开机设置新人从零)
+3. [一键复现（最快路径）](#3-一键复现最快路径)
+4. [分阶段详细指南（S1-S8）](#4-分阶段详细指南s1-s8)
+5. [预期结果总览](#5-预期结果总览)
+6. [SSH 断线应对速查](#6-ssh-断线应对速查)
+7. [常见故障排查](#7-常见故障排查)
+8. [目录结构说明](#8-目录结构说明)
+9. [扩展文档索引](#9-扩展文档索引)
+
+---
+
+## 1. 环境要求
+
+| 项目 | 要求 |
+|------|------|
+| GPU | NVIDIA RTX 4090（24 GB）或同等 |
+| CUDA | 11.8+ |
+| 系统 | Linux（Ubuntu 20.04 / 22.04） |
+| Python | 3.10 ~ 3.11 |
+| 磁盘 | >= 50 GB（数据盘，AutoDL 为 `/root/autodl-tmp`） |
+| 网络 | 需访问 HuggingFace / CDS API（首次下载） |
+
+---
+
+## 2. AutoDL 开机设置（新人从零）
+
+### 2.1 选择镜像
+
+在 AutoDL 创建实例时，选择：
+
+- **基础镜像**：PyTorch 2.x / CUDA 11.8 / Python 3.10
+- **GPU**：RTX 4090（24 GB）
+
+### 2.2 SSH 连接
+
+实例启动后，AutoDL 会提供 SSH 登录命令，格式如：
+
 ```bash
-cd /root/projects/pangu-weather-repro-paper
-
-# 方式 1: tmux（推荐，断线后可重连）
-tmux new -s verify 'bash scripts/one_shot_verify.sh --yes'
-# 断线后重连: tmux attach -t verify
-
-# 方式 2: nohup（后台运行）
-nohup bash scripts/one_shot_verify.sh --yes > verify.log 2>&1 &
-tail -f verify.log
+ssh -p <端口> root@connect.westb.seetacloud.com
 ```
 
-该脚本自动完成：环境预检 -> CPU/GPU 冒烟 -> ERA5 真值检查 -> RMSE 评估 -> 论文图 -> 产品图 -> E 阶段验收 -> manifest 生成。
+在本地终端粘贴执行即可连接。
 
-## 最短复现路径（新机器推荐）
+### 2.3 首次 clone 仓库
+
+```bash
+mkdir -p /root/projects && cd /root/projects
+git clone git@github.com:kong2er/pangu-weather-repro-paper.git
+cd pangu-weather-repro-paper
+```
+
+### 2.4 安装 tmux（防断线）
+
+SSH 连接不稳定时任务会中断。**强烈建议**使用 tmux：
+
+```bash
+apt update && apt install -y tmux
+```
+
+常用操作：
+
+| 操作 | 命令 |
+|------|------|
+| 新建会话 | `tmux new -s work` |
+| 断开（不关闭） | `Ctrl+B` 然后按 `D` |
+| 重连 | `tmux attach -t work` |
+| 列出所有会话 | `tmux ls` |
+
+在 tmux 内运行长时间任务，即使 SSH 断开也不会丢失进度。
+
+### 2.5 配置 CDS API Key
+
+ERA5 数据自动下载需要 CDS API 密钥。前往 https://cds.climate.copernicus.eu 注册并获取 API Key，然后创建配置文件：
+
+```bash
+cat > ~/.cdsapirc << 'EOF'
+url: https://cds.climate.copernicus.eu/api/v2
+key: <你的UID>:<你的API-Key>
+EOF
+chmod 600 ~/.cdsapirc
+```
+
+> **无外网时**：可跳过此步，手动将 ERA5 nc 文件放置到 `$ERA5_RAW_ROOT` 目录（见 [S3 数据准备](#s3-数据准备--gpu-冒烟)）。
+
+---
+
+## 3. 一键复现（最快路径）
+
+以下 6 条命令从零到完成，推荐在 tmux 会话中执行：
+
 ```bash
 cd /root/projects/pangu-weather-repro-paper
-bash scripts/create_cpu_venv.sh
-bash scripts/create_gpu_venv.sh
+bash scripts/create_cpu_venv.sh && bash scripts/create_gpu_venv.sh
 source scripts/env_gpu.sh && source configs/default.env
 bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
 bash scripts/run_360h_split.sh --auto-retry
 bash scripts/one_shot_verify.sh --yes
 ```
 
-## 空白机数据准备（必须先完成）
+`one_shot_verify.sh` 会自动完成：环境预检 → CPU/GPU 冒烟 → ERA5 真值检查 → RMSE 评估 → 论文图 → 产品图 → E 阶段验收 → manifest 生成。
 
-### 推理输入（surface.npy + pressure.npy）
+**预计总耗时**：约 1-2 小时（含数据下载，RTX 4090 基准）。
+
+---
+
+## 4. 分阶段详细指南（S1-S8）
+
+### S1 环境搭建
+
+| | |
+|---|---|
+| **耗时估算** | 5-10 min |
+| **通过标准** | `env_gpu.sh` 输出包含 `CUDAExecutionProvider` |
+
 ```bash
-# 自动下载（非交互）
-bash scripts/prepare_era5_inputs.sh --yes
+cd /root/projects/pangu-weather-repro-paper
 
-# 手动放置（无外网时）
-# 原始 nc: $ERA5_RAW_ROOT/era5_single_2023070900.nc + era5_pressure_2023070900.nc
-# 预处理 npy: $PROCESSED_ROOT/surface.npy + pressure.npy
+# 创建 CPU / GPU 虚拟环境
+bash scripts/create_cpu_venv.sh
+bash scripts/create_gpu_venv.sh
+
+# 激活 GPU 环境 + 加载路径配置
+source scripts/env_gpu.sh
+source configs/default.env
+
+# 安装可选依赖（RMSE、绘图、Streamlit）
+bash scripts/install_extras.sh rmse          # netCDF4, cftime
+bash scripts/install_extras.sh plots --force # matplotlib, cartopy, scipy
+bash scripts/install_extras.sh streamlit     # Streamlit 页面
+
+# 验证环境健康
+bash scripts/verify_repo_health.sh
 ```
 
-### 评估真值（Day5 RMSE 需要）
+预期输出：终端显示 `CUDAExecutionProvider` 已加载，健康检查通过。
+
+---
+
+### S2 CPU 冒烟
+
+| | |
+|---|---|
+| **耗时估算** | < 1 min |
+| **通过标准** | 输出 `contracts smoke ok` |
+
 ```bash
-# 自动下载 RMSE 评估所需的 ERA5 真值 pressure 文件
+bash scripts/run_cpu.sh -m pangu_weather_repro.smoke
+```
+
+预期输出：
+```
+contracts smoke ok
+```
+
+---
+
+### S3 数据准备 + GPU 冒烟
+
+| | |
+|---|---|
+| **耗时估算** | 10-30 min（取决于网速） |
+| **通过标准** | 生成 `$OUTPUT_ROOT/smoke_24h_report.json` |
+
+```bash
+# 下载 ERA5 推理输入 + 评估真值（非交互模式）
 bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
 
-# 手动放置（无外网时，按 rollout 步长推导文件名）
-# $ERA5_RAW_ROOT/era5_pressure_2023071000.nc  (init+24h)
-# $ERA5_RAW_ROOT/era5_pressure_2023071006.nc  (init+30h)
+# 运行 GPU 24h 冒烟测试
+bash scripts/run_day3_smoke_gpu.sh
 ```
 
-## 官方入口（只用 `scripts/`）
-- 环境：`create_cpu_venv.sh`、`create_gpu_venv.sh`、`env_cpu.sh`、`env_gpu.sh`
-- 数据：`prepare_era5_inputs.sh`（支持 `--ensure-eval-gt` 下载评估真值）
-- 运行：`run_cpu.sh`、`run_gpu.sh`、`run_360h_split.sh`、`run_product_all.sh`、`run_streamlit.sh`
-- 验收：`one_shot_verify.sh`（一键核查）、`verify_repo_health.sh`（轻量健康检查）、`final_verify.sh`（传统验收）
-- 依赖安装：`install_extras.sh`
+数据准备脚本会自动完成：
+1. 下载 ERA5 单层 / 气压层 nc 文件到 `$ERA5_RAW_ROOT`
+2. 预处理为 `$PROCESSED_ROOT/surface.npy` + `pressure.npy`
+3. 下载 RMSE 评估所需的真值 nc 文件
 
-`scripts/internal/` 与 `docs/_internal/` 仅用于过程治理和内部排障，不作为对外主流程。
+> **无外网时手动放置**：
+> - 推理输入：`$ERA5_RAW_ROOT/era5_single_2023070900.nc` + `era5_pressure_2023070900.nc`
+> - 或预处理后：`$PROCESSED_ROOT/surface.npy` + `pressure.npy`
+> - 评估真值：`$ERA5_RAW_ROOT/era5_pressure_2023071000.nc`（init+24h）、`era5_pressure_2023071006.nc`（init+30h）
 
-## 阶段总览（S1-S8）
-- S1 环境与依赖
-- S2 CPU smoke
-- S3 GPU smoke
-- S4 84h 推理
-- S5 360h 推理（split/resume/auto-retry）
-- S6 RMSE + paper 图
-- S7 产品图族 + Streamlit
-- S8 最终验收
+---
 
-详细命令见 `RUNBOOK.md`。
+### S4 84h 短时效推理
 
-## SSH 断线 / 重连指南
+| | |
+|---|---|
+| **耗时估算** | 5-10 min |
+| **通过标准** | 输出目录含 `forecast_report.json` |
+
+```bash
+scripts/run_gpu.sh tools/run_forecast.py \
+  --strategy kong2er_ref \
+  --mode short \
+  --target-hours 84 \
+  --noarena --threads 1 \
+  --out-dir "$OUTPUT_ROOT/forecast_84h_$(date +%Y%m%d_%H%M%S)"
+```
+
+---
+
+### S5 360h 长时效推理
+
+| | |
+|---|---|
+| **耗时估算** | 15-30 min |
+| **通过标准** | 终端出现 `report long` 或 `[RETRY] success` |
+
+```bash
+# 推荐在 tmux 中运行（防断线）
+tmux new -s forecast 'bash scripts/run_360h_split.sh --auto-retry'
+
+# 或直接运行
+bash scripts/run_360h_split.sh --auto-retry
+```
+
+脚本自动分段推理并在 OOM 时自动降载重试。
+
+---
+
+### S6 RMSE 评估 + 论文图
+
+| | |
+|---|---|
+| **耗时估算** | 5-10 min |
+| **通过标准** | `artifacts/day5/rmse.csv` 和 `figures/day6/*.png` 存在且非空 |
+
+```bash
+# 确保评估真值已下载
+bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt
+
+# RMSE 评估
+bash scripts/internal/run_day5_rmse.sh --force
+
+# 生成论文级图表
+bash scripts/internal/run_day6_plots.sh --force
+```
+
+---
+
+### S7 产品图族 + Streamlit
+
+| | |
+|---|---|
+| **耗时估算** | 5-10 min |
+| **通过标准** | `figures/product/*.png` 和 `*.json` 生成；Streamlit 页面可访问 |
+
+```bash
+# 生成产品图（填色图、差值图、矢量图、风速图、海平面气压+风场）
+bash scripts/run_product_all.sh \
+  --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" \
+  --hours 24,30 \
+  --impl auto \
+  --force
+
+# 启动 Streamlit 可视化页面
+bash scripts/run_streamlit.sh --host 0.0.0.0 --port 8501
+```
+
+> **Streamlit 访问**：本地浏览器打开 `http://127.0.0.1:8501`。如外网 503，请使用 SSH 隧道转发端口。
+
+---
+
+### S8 最终验收
+
+| | |
+|---|---|
+| **耗时估算** | 2-5 min |
+| **通过标准** | 输出 `FINAL VERIFY PASS` |
+
+```bash
+# 方式 1：一键核查（推荐）
+bash scripts/one_shot_verify.sh --yes
+
+# 方式 2：传统分步验收
+bash scripts/verify_repo_health.sh
+bash scripts/final_verify.sh --with-e-stage --e-stage-force
+```
+
+验收通过后会生成 `artifacts/manifest.json`（所有产物路径 + SHA256 校验和）。
+
+---
+
+### 耗时汇总
+
+| 阶段 | 耗时 |
+|------|------|
+| S1 环境搭建 | 5-10 min |
+| S2 CPU 冒烟 | < 1 min |
+| S3 数据下载 + 预处理 + GPU 冒烟 | 10-30 min（取决于网速） |
+| S4 84h 推理 | 5-10 min |
+| S5 360h 推理 | 15-30 min |
+| S6 RMSE + 出图 | 5-10 min |
+| S7 产品图 | 5-10 min |
+| S8 验收 | 2-5 min |
+| **总计** | **约 1-2 小时**（含数据下载） |
+
+---
+
+## 5. 预期结果总览
+
+| 产物文件 | 说明 |
+|----------|------|
+| `$OUTPUT_ROOT/smoke_24h_report.json` | GPU 24h 冒烟测试报告 |
+| `$OUTPUT_ROOT/forecast_84h_*/forecast_report.json` | 84h 短时效推理报告 |
+| `$OUTPUT_ROOT/day4_rollout_30h/` | 360h 逐步推理输出（surface/pressure npy） |
+| `artifacts/day5/rmse.csv` | RMSE 评估结果（各变量、各时效） |
+| `figures/day6/*.png` | 论文级图表（场图 + RMSE 曲线） |
+| `figures/product/*.png` | 产品图族（填色、差值、矢量、风速、海平面气压+风场） |
+| `figures/product/*.json` | 产品图元数据 |
+| `artifacts/day7/REPORT.md` | 验收报告 |
+| `artifacts/day7/E_STAGE_REPORT.md` | E 阶段验收报告 |
+| `artifacts/manifest.json` | 全部产物路径 + SHA256 校验和 |
+| `logs/one_shot_verify_*.log` | 一键核查完整日志 |
+
+> **数据路径说明**：`$OUTPUT_ROOT` 默认为 `/root/autodl-tmp/pangu-weather-repro/outputs`，由 `configs/default.env` 定义。
+
+---
+
+## 6. SSH 断线应对速查
 
 | 场景 | 操作 |
 |------|------|
-| tmux 断线 | `tmux attach -t verify` |
-| nohup 运行中 | `tail -f verify.log` 或 `tail -f logs/one_shot_verify_*.log` |
-| screen 断线 | `screen -r verify` |
-| 查看最新日志 | `ls -lt logs/one_shot_verify_*.log \| head -1` |
-| 检查是否还在运行 | `cat .one_shot_verify.lock && ps -p $(cat .one_shot_verify.lock)` |
-| 强制重跑 | `bash scripts/one_shot_verify.sh --yes --force-kill` |
+| tmux 断线后重连 | `tmux attach -t verify`（或 `-t forecast`） |
+| nohup 查看日志 | `tail -f verify.log` 或 `tail -f logs/one_shot_verify_*.log` |
+| screen 断线后重连 | `screen -r verify` |
+| 查看最新日志文件 | `ls -lt logs/one_shot_verify_*.log \| head -1` |
+| 检查任务是否在运行 | `cat .one_shot_verify.lock && ps -p $(cat .one_shot_verify.lock)` |
+| 强制重跑核查 | `bash scripts/one_shot_verify.sh --force-kill --yes` |
+| nohup 方式运行 | `nohup bash scripts/one_shot_verify.sh --yes > verify.log 2>&1 &` |
 
-## 只跑单个阶段
-```bash
-# 只跑 Day5 RMSE
-bash scripts/internal/run_day5_rmse.sh --force
+---
 
-# 只跑 Day6 出图
-bash scripts/internal/run_day6_plots.sh --force
+## 7. 常见故障排查
 
-# 只跑产品图
-bash scripts/run_product_all.sh --rollout-dir "$OUTPUT_ROOT/day4_rollout_30h" --hours 24,30 --force
+| 故障现象 | 原因 | 修复命令 |
+|----------|------|----------|
+| `SSL_CERTIFICATE_VERIFY_FAILED` | AutoDL 容器缺少 CA 证书 | `source configs/default.env`（自动通过 certifi 修复） |
+| `CUDAExecutionProvider` 缺失 | GPU 环境未正确安装或未激活 | `bash scripts/create_gpu_venv.sh --update && source scripts/env_gpu.sh` |
+| `libcublasLt.so.12 MISSING` | CUDA 库不在 `LD_LIBRARY_PATH` | `source scripts/env_gpu.sh` |
+| 绘图依赖缺失（matplotlib/scipy） | 可选依赖未安装 | `bash scripts/install_extras.sh plots --force` |
+| RMSE 依赖缺失（netCDF4） | 可选依赖未安装 | `bash scripts/install_extras.sh rmse` |
+| 缺少 ERA5 推理输入 | 数据未下载 | `bash scripts/prepare_era5_inputs.sh --yes` |
+| 缺少 ERA5 评估真值 | 评估真值未单独下载 | `bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt` |
+| 360h 推理 OOM | GPU 显存不足 | `bash scripts/run_360h_split.sh --auto-retry`（自动降载） |
+| Streamlit 外网 503 | 外部网络访问被拦截 | 使用 SSH 隧道 `ssh -L 8501:127.0.0.1:8501 ...` |
+| 已有核查在运行 | lockfile 冲突 | `bash scripts/one_shot_verify.sh --force-kill --yes` |
+| Python 环境不对 / ModuleNotFoundError | 未 source 环境脚本 | 确保先执行 `source scripts/env_gpu.sh` |
+| nohup 日志空白 | Python 输出缓冲 | 使用 `one_shot_verify.sh`（已内置 `PYTHONUNBUFFERED=1`） |
 
-# 只跑 E 阶段
-bash scripts/internal/run_e_stage_verify.sh --force
+---
 
-# 跳过已通过的阶段
-bash scripts/one_shot_verify.sh --yes --skip-cpu-smoke --skip-gpu-smoke
+## 8. 目录结构说明
+
+```
+pangu-weather-repro-paper/
+├── pangu_weather_repro/        # 核心 Python 包（推理、可视化、Streamlit app）
+│   ├── contracts.py            #   张量契约检查
+│   ├── smoke.py                #   CPU 冒烟测试
+│   ├── infer/                  #   ONNX 推理引擎（runner.py, scheduler.py）
+│   ├── visualization/          #   绘图模块（product_draw, geo, style）
+│   └── app/                    #   Streamlit 应用（app.py + pages/）
+│
+├── scripts/                    # 公开入口脚本（S1-S8 所有命令都在这里）
+│   ├── create_cpu_venv.sh      #   创建 CPU 虚拟环境
+│   ├── create_gpu_venv.sh      #   创建 GPU 虚拟环境
+│   ├── env_cpu.sh / env_gpu.sh #   激活环境 + 设置 CUDA/SSL 路径
+│   ├── install_extras.sh       #   安装可选依赖（rmse/plots/streamlit）
+│   ├── prepare_era5_inputs.sh  #   ERA5 数据下载与预处理
+│   ├── run_cpu.sh              #   CPU 冒烟
+│   ├── run_day3_smoke_gpu.sh   #   GPU 冒烟
+│   ├── run_gpu.sh              #   GPU 推理封装
+│   ├── run_360h_split.sh       #   360h 分段推理（含 auto-retry）
+│   ├── run_product_all.sh      #   产品图族生成
+│   ├── run_streamlit.sh        #   启动 Streamlit
+│   ├── one_shot_verify.sh      #   一键核查（S1-S8 全流程）
+│   ├── verify_repo_health.sh   #   轻量健康检查
+│   ├── final_verify.sh         #   传统验收
+│   └── internal/               #   内部脚本（RMSE、出图、清理等）
+│
+├── tools/                      # 高级 CLI 工具
+│   ├── run_forecast.py         #   统一推理 CLI
+│   ├── eval_rmse.py            #   RMSE 评估
+│   ├── plot_fields.py          #   场图绘制
+│   ├── plot_rmse_curve.py      #   RMSE 曲线
+│   ├── plot_paper_bundle.py    #   论文图表包
+│   └── plot_product_bundle.py  #   产品图包
+│
+├── configs/
+│   ├── default.env             # 路径配置（DATA_ROOT, OUTPUT_ROOT 等）
+│   └── default.yaml            # YAML 配置
+│
+├── tests/                      # 单元测试
+├── vendor/blueprint/           # 蓝本参考实现镜像
+├── artifacts/                  # 产物（rmse.csv, manifest.json, 报告）
+├── figures/                    # 图表输出（day6/ 论文图, product/ 产品图）
+├── outputs/                    # 推理输出（gitignored）
+├── docs/                       # 扩展文档
+└── logs/                       # 核查日志
 ```
 
-## 产品图实现选择
-`run_product_all.sh` 支持 `--impl`：
-- `auto`：默认，优先稳定
-- `native`：本仓库原生实现
-- `blueprint`：蓝本适配实现
+**数据盘路径**（由 `configs/default.env` 配置）：
 
-## 常见故障快速修复
+| 变量 | 默认路径 | 用途 |
+|------|----------|------|
+| `$DATA_ROOT` | `/root/autodl-tmp/pangu-weather-repro` | 数据根目录 |
+| `$ERA5_RAW_ROOT` | `$DATA_ROOT/era5_raw` | ERA5 原始 nc 文件 |
+| `$PROCESSED_ROOT` | `$DATA_ROOT/processed` | 预处理后 npy 文件 |
+| `$OUTPUT_ROOT` | `$DATA_ROOT/outputs` | 推理输出 |
+| `$MODELS_ROOT` | `$DATA_ROOT/models` | ONNX 模型权重 |
+| `$CACHE_ROOT` | `$DATA_ROOT/cache` | 缓存 |
+| `$LOG_ROOT` | `$DATA_ROOT/logs` | 日志 |
 
-| 故障 | 修复命令 |
-|------|----------|
-| `CUDAExecutionProvider` 缺失 | `bash scripts/create_gpu_venv.sh --update && source scripts/env_gpu.sh` |
-| 绘图依赖缺失（matplotlib/scipy） | `bash scripts/install_extras.sh plots --force` |
-| RMSE 依赖缺失（netCDF4） | `bash scripts/install_extras.sh rmse` |
-| 缺少 ERA5 推理输入 | `bash scripts/prepare_era5_inputs.sh --yes` |
-| 缺少 ERA5 评估真值 | `bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt` |
-| 360h OOM | `bash scripts/run_360h_split.sh --auto-retry` |
-| Streamlit 外网 503 | SSH 隧道 `http://127.0.0.1:8501` |
-| 已有核查在运行 | `bash scripts/one_shot_verify.sh --force-kill --yes` |
-| Python 环境不对 | 确保先 `source scripts/env_gpu.sh` |
-| nohup 日志空白 | 使用 `one_shot_verify.sh`（已内置 PYTHONUNBUFFERED） |
+---
 
-## 清理与从头再来
-```bash
-# 查看占用
-bash scripts/internal/cleanup_check.sh
+## 9. 扩展文档索引
 
-# 预览清理（不实际删除）
-bash scripts/internal/cleanup_autodl.sh --dry-run
-
-# 执行清理
-bash scripts/internal/cleanup_autodl.sh --force --keep-latest 2 --keep-days 3
-
-# 完全从头再来（删除所有产物后重跑）
-bash scripts/one_shot_verify.sh --yes --force
-```
-
-## 目录说明（复现视角）
-- `pangu_weather_repro/`：核心代码
-- `scripts/`：公开入口
-- `tools/`：高级 CLI
-- `configs/`：路径与环境配置
-- `docs/`：对外交付文档
-- `vendor/blueprint/`：蓝本镜像与适配基础
-- `logs/`：核查日志（由 one_shot_verify.sh 生成）
-- `artifacts/`：产物目录（rmse.csv、manifest.json、E_STAGE_REPORT.md）
-
-运行产物默认写入 `OUTPUT_ROOT`（一般为 `/root/autodl-tmp/pangu-weather-repro/outputs`）。
+| 文档 | 内容 |
+|------|------|
+| [`RUNBOOK.md`](RUNBOOK.md) | S1-S8 分阶段详细操作手册（含排错） |
+| [`docs/DELIVERY_SUMMARY.md`](docs/DELIVERY_SUMMARY.md) | 阶段目标、命令、产物、验收矩阵速查表 |
+| [`docs/FUNCTION_CALL_MANUAL_ZH.md`](docs/FUNCTION_CALL_MANUAL_ZH.md) | 16 个核心功能调用速查（中文） |
+| [`docs/_internal/`](docs/_internal/) | 内部流程文档（不影响主线复现） |
