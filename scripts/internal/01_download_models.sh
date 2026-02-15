@@ -13,6 +13,25 @@ if [[ "${1:-}" == "--help" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# --- SSL CA fix (AutoDL containers often lack CA certs) ---
+if [[ -z "${SSL_CERT_FILE:-}" && -z "${REQUESTS_CA_BUNDLE:-}" ]]; then
+  _CERTIFI_CA=""
+  for _PY in "${ROOT_DIR}/.venv-gpu/bin/python" "${ROOT_DIR}/.venv-cpu/bin/python" "python3" "python"; do
+    if command -v "${_PY}" >/dev/null 2>&1 || [[ -x "${_PY}" ]]; then
+      _CERTIFI_CA="$("${_PY}" -c "import certifi; print(certifi.where())" 2>/dev/null || true)"
+      if [[ -n "${_CERTIFI_CA}" && -f "${_CERTIFI_CA}" ]]; then break; fi
+      _CERTIFI_CA=""
+    fi
+  done
+  if [[ -n "${_CERTIFI_CA}" ]]; then
+    export SSL_CERT_FILE="${_CERTIFI_CA}"
+    export REQUESTS_CA_BUNDLE="${_CERTIFI_CA}"
+    export CURL_CA_BUNDLE="${_CERTIFI_CA}"
+  fi
+  unset _CERTIFI_CA _PY
+fi
+
 MODEL_DIR="/root/autodl-tmp/pangu-weather-repro/models"
 BASE_URL="https://huggingface.co/OpenEarthLab/Pangu-Weather/resolve/main"
 SOURCE="hf"
@@ -105,9 +124,9 @@ download_hf() {
   fi
   echo "downloading..."
   if command -v wget >/dev/null 2>&1; then
-    wget -c --timeout=20 --tries=3 --inet4-only -O "${name}.partial" "$url" || true
+    wget -c --timeout=20 --tries=3 --inet4-only ${SSL_CERT_FILE:+--ca-certificate="${SSL_CERT_FILE}"} -O "${name}.partial" "$url" || true
   elif command -v curl >/dev/null 2>&1; then
-    curl -L --retry 3 --connect-timeout 20 -o "${name}.partial" "$url" || true
+    curl -L --retry 3 --connect-timeout 20 ${SSL_CERT_FILE:+--cacert "${SSL_CERT_FILE}"} -o "${name}.partial" "$url" || true
   else
     echo "[WARN] No wget/curl found."
     FAILED_MODELS+=("${name}")
