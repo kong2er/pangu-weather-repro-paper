@@ -233,6 +233,9 @@ echo "[OUTPUT] ${PROCESSED_ROOT}/pressure.npy"
 # ---------------------------------------------------------------------------
 # 评估真值 ERA5 文件下载（Day5 RMSE 需要）
 # 根据初始场时间 + 步长，推导出对应的真值时刻并下载 pressure nc
+#
+# 注意: 此段独立于上方推理输入下载流程。即使 processed npy 已存在（快速
+# 通道跳过了上方下载），评估真值仍可能缺失，需要在此独立处理。
 # ---------------------------------------------------------------------------
 if [[ "${ENSURE_EVAL_GT}" -eq 1 ]]; then
   echo ""
@@ -250,47 +253,134 @@ for s in steps:
     print(gt_dt.strftime('%Y%m%d%H'))
 ")
 
-  GT_ALL_OK=1
-  GT_DOWNLOADED=0
+  # 先检查哪些真值文件已存在，哪些需要下载
+  GT_NEED_DOWNLOAD=()
   GT_SKIPPED=0
   for GT_STAMP in ${EVAL_GT_DATES}; do
     GT_NC="${ERA5_RAW_ROOT}/era5_pressure_${GT_STAMP}.nc"
-    if [[ -s "${GT_NC}" ]]; then
-      echo "[OK] 真值文件已存在: ${GT_NC}"
-      GT_SKIPPED=$((GT_SKIPPED + 1))
-      continue
-    fi
     # 清除空文件
     if [[ -f "${GT_NC}" && ! -s "${GT_NC}" ]]; then
       echo "[清理] 删除空文件: ${GT_NC}"
       rm -f "${GT_NC}"
     fi
-    GT_DATE_PART="${GT_STAMP:0:8}"
-    GT_HOUR_PART="${GT_STAMP:8:2}"
-    echo "[下载] 评估真值: era5_pressure_${GT_STAMP}.nc (date=${GT_DATE_PART} hour=${GT_HOUR_PART})"
-    if "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/scripts/internal/03_download_era5_pressure.py" \
-      --date "${GT_DATE_PART}" --hour "${GT_HOUR_PART}" --out-dir "${ERA5_RAW_ROOT}"; then
-      if [[ -s "${GT_NC}" ]]; then
-        echo "[OK] 下载成功: ${GT_NC}"
-        GT_DOWNLOADED=$((GT_DOWNLOADED + 1))
-      else
-        echo "[WARN] 下载命令成功但文件为空或不存在: ${GT_NC}"
-        GT_ALL_OK=0
-      fi
+    if [[ -s "${GT_NC}" ]]; then
+      echo "[OK] 真值文件已存在: ${GT_NC}"
+      GT_SKIPPED=$((GT_SKIPPED + 1))
     else
-      echo "[WARN] 下载失败: ${GT_NC}"
-      echo "[提示] 可手动放置: ${GT_NC}"
-      GT_ALL_OK=0
+      GT_NEED_DOWNLOAD+=("${GT_STAMP}")
     fi
   done
 
-  echo ""
-  echo "[评估真值] 已下载=${GT_DOWNLOADED}, 已跳过=${GT_SKIPPED}"
-  if [[ "${GT_ALL_OK}" -eq 1 ]]; then
+  if [[ ${#GT_NEED_DOWNLOAD[@]} -eq 0 ]]; then
+    echo ""
+    echo "[评估真值] 全部已存在 (跳过=${GT_SKIPPED})"
     echo "[PASS] 所有评估真值文件就绪"
   else
-    echo "[WARN] 部分评估真值文件缺失，Day5 RMSE 可能回退到 npz 内嵌 gt"
-    echo "[提示] 手动放置缺失文件到 ${ERA5_RAW_ROOT}/ 后重跑:"
-    echo "       bash scripts/prepare_era5_inputs.sh --ensure-eval-gt --yes"
+    # 有文件需要下载 —— 独立检查下载条件
+    CAN_DOWNLOAD=1
+
+    # 检查 cdsapi 模块
+    if ! "${ROOT_DIR}/scripts/run_gpu.sh" -c "import cdsapi" 2>/dev/null; then
+      echo "[WARN] 缺少 cdsapi 模块，无法自动下载评估真值"
+      echo "[修复] bash scripts/install_extras.sh download"
+      CAN_DOWNLOAD=0
+    fi
+
+    # 检查 ~/.cdsapirc（独立于上方推理输入的检查！）
+    if [[ "${CAN_DOWNLOAD}" -eq 1 && ! -f "${HOME}/.cdsapirc" ]]; then
+      echo "[WARN] 缺少 ~/.cdsapirc，无法自动下载评估真值"
+      if [[ -t 0 && "${ASSUME_YES}" -eq 0 ]]; then
+        echo "[询问] 是否现在填写 CDS API Key？(yes/no)"
+        read -r -p "> " GT_API_REPLY
+        case "${GT_API_REPLY}" in
+          yes|y|Y)
+            echo "请输入 CDS API Key:"
+            read -r -p "> " GT_CDS_KEY
+            GT_CDS_KEY="${GT_CDS_KEY#key:}"
+            GT_CDS_KEY="$(echo "${GT_CDS_KEY}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            if [[ -n "${GT_CDS_KEY}" ]]; then
+              cat > "${HOME}/.cdsapirc" <<CDSEOF
+url: https://cds.climate.copernicus.eu/api
+key: ${GT_CDS_KEY}
+CDSEOF
+              chmod 600 "${HOME}/.cdsapirc"
+              echo "[OK] 已写入 ~/.cdsapirc"
+            else
+              CAN_DOWNLOAD=0
+            fi
+            ;;
+          *)
+            CAN_DOWNLOAD=0
+            ;;
+        esac
+      else
+        CAN_DOWNLOAD=0
+      fi
+    fi
+
+    if [[ "${CAN_DOWNLOAD}" -eq 1 ]]; then
+      # 逐个下载缺失的真值文件
+      GT_ALL_OK=1
+      GT_DOWNLOADED=0
+      for GT_STAMP in "${GT_NEED_DOWNLOAD[@]}"; do
+        GT_NC="${ERA5_RAW_ROOT}/era5_pressure_${GT_STAMP}.nc"
+        GT_DATE_PART="${GT_STAMP:0:8}"
+        GT_HOUR_PART="${GT_STAMP:8:2}"
+        echo "[下载] 评估真值: era5_pressure_${GT_STAMP}.nc (date=${GT_DATE_PART} hour=${GT_HOUR_PART})"
+        if "${ROOT_DIR}/scripts/run_gpu.sh" "${ROOT_DIR}/scripts/internal/03_download_era5_pressure.py" \
+          --date "${GT_DATE_PART}" --hour "${GT_HOUR_PART}" --out-dir "${ERA5_RAW_ROOT}"; then
+          if [[ -s "${GT_NC}" ]]; then
+            echo "[OK] 下载成功: ${GT_NC}"
+            GT_DOWNLOADED=$((GT_DOWNLOADED + 1))
+          else
+            echo "[WARN] 下载命令成功但文件为空或不存在: ${GT_NC}"
+            GT_ALL_OK=0
+          fi
+        else
+          echo "[WARN] 下载失败: ${GT_NC}"
+          GT_ALL_OK=0
+        fi
+      done
+
+      echo ""
+      echo "[评估真值] 已下载=${GT_DOWNLOADED}, 已跳过=${GT_SKIPPED}, 需下载=${#GT_NEED_DOWNLOAD[@]}"
+      if [[ "${GT_ALL_OK}" -eq 1 ]]; then
+        echo "[PASS] 所有评估真值文件就绪"
+      else
+        echo "[WARN] 部分评估真值文件仍缺失"
+      fi
+    else
+      # 无法自动下载，给出手动放置指引
+      echo ""
+      echo "================================================================"
+      echo "[提示] 无法自动下载评估真值，请手动下载以下文件:"
+      echo ""
+      echo "  放置目录: ${ERA5_RAW_ROOT}/"
+      echo ""
+      for GT_STAMP in "${GT_NEED_DOWNLOAD[@]}"; do
+        GT_DATE_PART="${GT_STAMP:0:8}"
+        GT_HOUR_PART="${GT_STAMP:8:2}"
+        echo "  文件: era5_pressure_${GT_STAMP}.nc"
+        echo "    含义: ${GT_DATE_PART} ${GT_HOUR_PART}:00 UTC 的 ERA5 pressure-level 数据"
+        echo "    变量: geopotential(z), temperature(t), u/v_wind, specific_humidity"
+        echo "    层次: 1000,925,850,700,600,500,400,300,250,200,150,100,50 hPa"
+        echo ""
+      done
+      echo "  下载方式:"
+      echo "    1) CDS API: https://cds.climate.copernicus.eu/"
+      echo "       注册后获取 API Key，创建 ~/.cdsapirc 后重跑:"
+      echo "       bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt"
+      echo ""
+      echo "    2) 手动逐个下载（配好 ~/.cdsapirc 后）:"
+      for GT_STAMP in "${GT_NEED_DOWNLOAD[@]}"; do
+        GT_DATE_PART="${GT_STAMP:0:8}"
+        GT_HOUR_PART="${GT_STAMP:8:2}"
+        echo "       scripts/run_gpu.sh scripts/internal/03_download_era5_pressure.py --date ${GT_DATE_PART} --hour ${GT_HOUR_PART} --out-dir ${ERA5_RAW_ROOT}"
+      done
+      echo ""
+      echo "  放置完成后验证:"
+      echo "    bash scripts/prepare_era5_inputs.sh --yes --ensure-eval-gt"
+      echo "================================================================"
+    fi
   fi
 fi

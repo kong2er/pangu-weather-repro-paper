@@ -92,6 +92,9 @@ size_ok() {
   return 1
 }
 
+# 记录下载失败的模型
+FAILED_MODELS=()
+
 download_hf() {
   local url="$1"
   local name="$2"
@@ -106,8 +109,9 @@ download_hf() {
   elif command -v curl >/dev/null 2>&1; then
     curl -L --retry 3 --connect-timeout 20 -o "${name}.partial" "$url" || true
   else
-    echo "No wget/curl found. Download manually and place files in ${MODEL_DIR}."
-    exit 1
+    echo "[WARN] No wget/curl found."
+    FAILED_MODELS+=("${name}")
+    return 1
   fi
   if [[ -f "${name}.partial" ]]; then
     mv "${name}.partial" "${name}"
@@ -115,9 +119,10 @@ download_hf() {
   if size_ok "${name}"; then
     echo "ok (size=$(stat -c%s "${name}"))"
   else
-    echo "download failed or too small: ${name}"
-    echo "Next: scripts/01_download_models.sh --source ${SOURCE} --force"
-    exit 2
+    echo "[WARN] 下载失败或文件太小: ${name}"
+    rm -f "${name}" 2>/dev/null || true
+    FAILED_MODELS+=("${name}")
+    return 1
   fi
 }
 
@@ -211,22 +216,62 @@ download_gdrive() {
   if download_gdrive_py "$fid" "$name"; then
     return 0
   fi
-  echo "download failed: ${name}"
-  echo "Next: scripts/01_download_models.sh --source gdrive --force"
-  exit 2
+  echo "[WARN] 下载失败: ${name}"
+  FAILED_MODELS+=("${name}")
+  return 1
 }
 
 if [[ "${SOURCE}" == "gdrive" ]]; then
-  download_gdrive "${GID_1}" "pangu_weather_1.onnx"
-  download_gdrive "${GID_3}" "pangu_weather_3.onnx"
-  download_gdrive "${GID_6}" "pangu_weather_6.onnx"
-  download_gdrive "${GID_24}" "pangu_weather_24.onnx"
+  download_gdrive "${GID_1}" "pangu_weather_1.onnx" || true
+  download_gdrive "${GID_3}" "pangu_weather_3.onnx" || true
+  download_gdrive "${GID_6}" "pangu_weather_6.onnx" || true
+  download_gdrive "${GID_24}" "pangu_weather_24.onnx" || true
 else
-  download_hf "${BASE_URL}/pangu_weather_1.onnx" "pangu_weather_1.onnx"
-  download_hf "${BASE_URL}/pangu_weather_3.onnx" "pangu_weather_3.onnx"
-  download_hf "${BASE_URL}/pangu_weather_6.onnx" "pangu_weather_6.onnx"
-  download_hf "${BASE_URL}/pangu_weather_24.onnx" "pangu_weather_24.onnx"
+  download_hf "${BASE_URL}/pangu_weather_1.onnx" "pangu_weather_1.onnx" || true
+  download_hf "${BASE_URL}/pangu_weather_3.onnx" "pangu_weather_3.onnx" || true
+  download_hf "${BASE_URL}/pangu_weather_6.onnx" "pangu_weather_6.onnx" || true
+  download_hf "${BASE_URL}/pangu_weather_24.onnx" "pangu_weather_24.onnx" || true
 fi
 
-echo "✅ models ready"
-ls -lh
+# ---------------------------------------------------------------------------
+# 最终校验与提示
+# ---------------------------------------------------------------------------
+echo ""
+echo "========== 模型文件状态 =========="
+ALL_OK=1
+for MODEL_NAME in pangu_weather_1.onnx pangu_weather_3.onnx pangu_weather_6.onnx pangu_weather_24.onnx; do
+  if file_ok "${MODEL_NAME}" && size_ok "${MODEL_NAME}"; then
+    echo "[OK]   ${MODEL_NAME} ($(stat -c%s "${MODEL_NAME}" | numfmt --to=iec 2>/dev/null || stat -c%s "${MODEL_NAME}"))"
+  else
+    echo "[MISS] ${MODEL_NAME}"
+    ALL_OK=0
+  fi
+done
+echo "==================================="
+
+if [[ "${ALL_OK}" -eq 1 ]]; then
+  echo ""
+  echo "✅ 所有模型就绪"
+  ls -lh *.onnx
+else
+  echo ""
+  echo "⚠️  部分模型下载失败，请手动下载后放入: ${MODEL_DIR}/"
+  echo ""
+  echo "下载链接（选任一可用来源）:"
+  echo ""
+  echo "  HuggingFace（推荐）:"
+  echo "    ${BASE_URL}/pangu_weather_1.onnx"
+  echo "    ${BASE_URL}/pangu_weather_3.onnx"
+  echo "    ${BASE_URL}/pangu_weather_6.onnx"
+  echo "    ${BASE_URL}/pangu_weather_24.onnx"
+  echo ""
+  echo "  Google Drive（备选）:"
+  echo "    1h:  https://drive.google.com/uc?export=download&id=${GID_1}"
+  echo "    3h:  https://drive.google.com/uc?export=download&id=${GID_3}"
+  echo "    6h:  https://drive.google.com/uc?export=download&id=${GID_6}"
+  echo "    24h: https://drive.google.com/uc?export=download&id=${GID_24}"
+  echo ""
+  echo "放置完成后重新验证:"
+  echo "  bash scripts/internal/01_download_models.sh --dir ${MODEL_DIR}"
+  # 不 exit 2，允许后续流程继续尝试
+fi
